@@ -1,7 +1,8 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121s';
-import { api, store } from '../js/api.js?v=20261121s';
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121s';
-import { openBriefing } from './theory.js?v=20261121s';
+import { MECH, OPS, SHOP } from './data.js?v=20261121t';
+import { api, store } from '../js/api.js?v=20261121t';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121t';
+import { openBriefing } from './theory.js?v=20261121t';
+import { createTeam, badge, LEAGUES } from './team.js?v=20261121t';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -47,7 +48,7 @@ function toast(msg) {
 // ---------- header ----------
 function renderHud() {
   $('#hud').innerHTML = `
-    <span class="chip chip-rank" title="Звание">${ico('rank')}<span>${esc(S.rank)}</span></span>
+    <button class="chip chip-rank" type="button" data-go="team" title="Лига">${badge(S.league ?? 0, 22)}<span>${esc(S.rank)}</span></button>
     <span class="chip chip-streak" title="Огонёк: дней учёбы подряд">${ico('flame')}<b class="tn">${S.streak}</b>
       ${S.freeze ? `<span class="freeze" title="Заморозка в запасе">${ico('snow')}<b class="tn">${S.freeze}</b></span>` : ''}</span>
     <span class="chip chip-xp" title="Опыт">${ico('bolt')}<b class="tn">${num(hudXp ?? S.xp)}</b></span>`;
@@ -189,10 +190,10 @@ function renderSide() {
       <p class="fine">Огонёк: <b class="tn">${S.streak}</b> · рекорд <b class="tn">${S.best}</b> ${plural(S.best, 'день', 'дня', 'дней')}. День засчитывается за любой шаг или тренировку. За каждые 7 дней подряд даём заморозку, она спасёт огонёк при пропуске.</p>
     </section>
     <section class="panel" data-panel="agent" aria-labelledby="p-agent">
-      <h2 id="p-agent">${ico('rank', 'h-ic')}Агент ${esc(S.name)}</h2>
-      <div class="rank-row"><span>${esc(S.rank)}</span>${S.nextXp ? `<span class="tn muted">${num(S.xp)} / ${num(S.nextXp)}</span><span>${esc(S.nextRank)}</span>` : '<span>Высшее звание</span>'}</div>
+      <h2 id="p-agent">${badge(S.league ?? 0, 30, 'h-lg')}Агент ${esc(S.name)}</h2>
+      <div class="rank-row"><span>${esc(S.rank)}</span>${S.nextXp ? `<span class="tn muted">${num(S.xp)} / ${num(S.nextXp)}</span><span>${esc(S.nextRank)}</span>` : '<span>Высшая лига</span>'}</div>
       <div class="bar bar-blue"><i style="--p:${Math.min(1, pct)}"></i></div>
-      <p class="fine">${S.nextXp ? `До звания «${esc(S.nextRank)}» ${num(S.nextXp - S.xp)} опыта. Звание считается по всему опыту, обмен в Лавке его не снижает.` : 'Вы на вершине штаба.'}</p>
+      <p class="fine">${S.nextXp ? `До лиги «${esc(S.nextRank)}» ${num(S.nextXp - S.xp)} опыта. Лига считается по всему опыту, обмен в Лавке её не снижает. Баттлы: ${S.bt?.win || 0} ${plural(S.bt?.win || 0, 'победа', 'победы', 'побед')}, ${S.bt?.draw || 0} вничью.` : 'Вы на вершине штаба.'}</p>
       <dl class="stats">
         <div><dt>Звёзды</dt><dd class="tn">${allStars} <small>из 180</small></dd></div>
         <div><dt>Операции</dt><dd class="tn">${opsDone} <small>из 6</small></dd></div>
@@ -285,7 +286,7 @@ function reward(o, s, step, r) {
     <h2 id="rw-t">${head}</h2>
     <p class="rw-sub">${sub}</p>
     <div class="rw-xp"><span class="rw-xp-n tn" data-to="${r.gain}">+0</span> опыта <span class="muted">· ${err}</span></div>
-    ${r.rankUp ? `<p class="rw-rank">${ico('rank')}Новое звание: <b>${esc(r.rankUp)}</b></p>` : ''}
+    ${r.rankUp ? `<div class="rw-rank promo">${badge(Math.max(0, LEAGUES.indexOf(r.rankUp)), 64, 'pop')}<span>Новая лига: <b>${esc(r.rankUp)}</b></span></div>` : ''}
     ${r.newBadges?.length ? `<ul class="rw-badges">${r.newBadges.map((b) => `<li><img src="../assets/stickers/${b.st}.webp" alt="" width="96" height="96"><b>${esc(b.t)}</b><span>${esc(b.d)}</span></li>`).join('')}</ul>` : ''}
     <div class="rw-a">
       ${next ? `<button class="cta cta-sm" type="button" data-play="${o}-${next}">Следующий шаг</button>` : nextOp ? `<button class="cta cta-sm" type="button" data-play="${o + 1}-1">Операция ${o + 1}</button>` : ''}
@@ -319,6 +320,7 @@ function closeReward() { const b = $('#reward'); b.hidden = true; b.className = 
 // ---------- views ----------
 function setView(v) {
   const was = $('.app').dataset.view; $('.app').dataset.view = v;
+  if (v === 'team') { team.render(); window.scrollTo({ top: 0 }); }
   if (was && was !== v) { sfx.tick(); const wide = matchMedia('(min-width: 1100px)').matches; if (!wide) replay(v === 'map' ? $('.view-map') : $(`[data-panel="${v}"]`), 'v-in'); }
   document.querySelectorAll('[data-go]').forEach((b) => { const on = b.dataset.go === v; b.classList.toggle('is-on', on); b.setAttribute('aria-current', on ? 'page' : 'false'); });
   if (matchMedia('(min-width: 1100px)').matches && v !== 'map') $(`[data-panel="${v}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -330,6 +332,22 @@ function setTheme(t) {
   try { localStorage.setItem('stand-theme', t); } catch (e) {}
   $('meta[name="theme-color"]').content = t === 'light' ? '#f4f1e8' : '#141414';
 }
+// ---------- team + in-app notifications ----------
+const team = createTeam({ api, toast, getState: () => S, setState: (st) => { if (st) { S = { ...st, battles: S?.battles }; renderAll(); } } });
+function notify() {
+  const bt = S?.battles; if (!bt) return;
+  const n = bt.incoming.length; document.querySelectorAll('[data-go="team"] .dot-n').forEach((d) => { d.hidden = !n; d.textContent = n; });
+  const seen = new Set(JSON.parse(localStorage.getItem('game-bt-seen') || '[]')); const msgs = [];
+  bt.incoming.forEach((x) => { if (!seen.has('i' + x.id)) { msgs.push(`${x.name} вызывает вас на баттл. Загляните в «Команду»`); seen.add('i' + x.id); } });
+  bt.done.forEach((x) => { if (!seen.has('d' + x.id)) { msgs.push(`${x.result === 'win' ? 'Победа в баттле!' : x.result === 'draw' ? 'Ничья в баттле.' : 'Баттл проигран.'} Соперник: ${x.name}${bt.gain ? `. +${bt.gain} опыта` : ''}`); seen.add('d' + x.id); } });
+  localStorage.setItem('game-bt-seen', JSON.stringify([...seen].slice(-80)));
+  msgs.slice(0, 2).forEach((m, i) => setTimeout(() => { toast(m); chime([659.25, 880], 0.08, 0.06); }, 600 + i * 3600));
+  if (bt.rankUp) setTimeout(() => { toast(`Новая лига: «${bt.rankUp}»!`); sfx.badge(); }, 400);
+}
+setInterval(async () => { // light refresh so challenges and results arrive without reload
+  if (document.hidden || !S || !$('#play').hidden || !$('#reward').hidden || $('#sheet').open) return;
+  try { const st = await api('/api/game/state?tz=' + encodeURIComponent(TZ)); const changed = st.xp !== S.xp || JSON.stringify(st.battles) !== JSON.stringify(S.battles); S = st; if (changed) { renderAll(); notify(); if ($('.app').dataset.view === 'team') team.render(); } } catch {}
+}, 60000);
 let introDone = false;
 function renderAll() {
   renderHud(); renderOps(); renderSide();
@@ -369,12 +387,13 @@ async function boot() {
   if (!store.token) return entry();
   $('.app').hidden = false; $('#entry').hidden = true;
   if (!S) $('#ops').innerHTML = '<li class="loading">Связываемся со штабом…</li>';
-  try { S = await api('/api/game/state?tz=' + encodeURIComponent(TZ), { timeout: 30000 }); renderAll(); }
+  try { S = await api('/api/game/state?tz=' + encodeURIComponent(TZ), { timeout: 30000 }); renderAll(); notify(); }
   catch (e) { if (!store.token) return entry('Сессия закончилась, войдите снова'); $('#ops').innerHTML = `<li class="loading">${esc(e.message)} <button class="btn btn-ghost btn-s" type="button" data-retry>Повторить</button></li>`; }
 }
 
 document.addEventListener('click', (e) => {
   const b = e.target.closest('button, a'); if (!b) return;
+  if (team.onClick(b)) return;
   if (b.dataset.play) { closeReward(); return play(b.dataset.play); }
   if (b.dataset.brief) { closeReward(); return briefing(+b.dataset.brief); }
   if (b.dataset.step) return openSheet(b.dataset.step);

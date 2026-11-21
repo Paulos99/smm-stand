@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors, clozeMarks } from './content/grade.js?v=20261121s';
-import { MECH } from './data.js?v=20261121s';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261121t';
+import { MECH } from './data.js?v=20261121t';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -76,7 +76,7 @@ export function stagger(parent, sel = ':scope > *', step = 45, max = 10) { if (!
 export function replay(node, cls) { if (!node) return; node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls); }
 const vibrate = ok => { try { if (!ok && navigator.vibrate) navigator.vibrate(30); } catch {} };
 
-export function playStep({ op, n, step, api, onDone, onClose, toast }) {
+export function playStep({ op, n, step, api, onDone, onClose, toast, submit, label }) {
   const root = document.getElementById('play');
   const items = step.items; const answers = Array(items.length).fill(null);
   const UNGRADED = ['brief', 'field', 'storm']; const graded = items.filter(it => !UNGRADED.includes(it.type)).length || 1;
@@ -86,7 +86,7 @@ export function playStep({ op, n, step, api, onDone, onClose, toast }) {
   sndBtn.classList.toggle('off', !sound.on);
   const head = el('header', { class: 'play-h' },
     el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Выйти на карту', onclick: () => close() }, ico('x')),
-    el('div', { class: 'play-meta' }, el('span', { class: 'play-k' }, op ? `Операция ${op} · шаг ${n} из 10 · ${MECH[step.m]}` : `Тренировка дня · ${items.length} заданий`), prog), sndBtn);
+    el('div', { class: 'play-meta' }, el('span', { class: 'play-k' }, label ? label : op ? `Операция ${op} · шаг ${n} из 10 · ${MECH[step.m]}` : `Тренировка дня · ${items.length} заданий`), prog), sndBtn);
   const body = el('main', { class: 'play-b' });
   const foot = el('footer', { class: 'play-f' });
   root.replaceChildren(head, body, foot); root.hidden = false; document.body.classList.add('playing'); replay(root, 'opening');
@@ -128,7 +128,7 @@ export function playStep({ op, n, step, api, onDone, onClose, toast }) {
   async function finish() {
     body.replaceChildren(el('div', { class: 'play-wait' }, el('span', { class: 'spin', 'aria-hidden': 'true' }), 'Штаб проверяет ответы…'));
     try {
-      const r = await api('/api/game/finish', { method: 'POST', body: { op, step: n, answers, tz: Intl.DateTimeFormat().resolvedOptions().timeZone } });
+      const r = submit ? await submit(answers) : await api('/api/game/finish', { method: 'POST', body: { op, step: n, answers, tz: Intl.DateTimeFormat().resolvedOptions().timeZone } });
       closed = true; document.removeEventListener('keydown', onKey); root.hidden = true; root.replaceChildren(); document.body.classList.remove('playing');
       onDone?.(r);
     } catch (e) {
