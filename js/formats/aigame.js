@@ -1,5 +1,6 @@
 import { h } from '../ui.js';
 import { ask, nextBtn, finale } from './_quiz.js';
+import { parseGame } from './_game-parse.js';
 // Teacher tool: AI turns a lecture into a game. A: quiz with 3 options. B: true or myth.
 export default function (stage, ctx) {
   const v = ctx.variant, lectures = ctx.content.lectures || [];
@@ -13,8 +14,7 @@ export default function (stage, ctx) {
     gen.disabled = true; gen.textContent = 'ИИ собирает игру, 10–20 секунд…'; ctx.step('generate');
     try {
       const r = await ctx.api('/api/ai', { method: 'POST', body: { mode: 'game', variant: v, text }, timeout: 45000 });
-      const raw = r.text.replace(/```(json)?/g, ''); const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
-      const items = (j.items || []).filter(x => x.q);
+      const items = parseGame(r.text, v);
       if (!items.length) throw new Error('ИИ вернул пустую игру, попробуйте ещё раз');
       play(items);
     } catch (e) { msg.replaceChildren(h('div', { class: 'explain' }, /JSON|Unexpected/.test(e.message) ? 'ИИ ответил не в том формате. Нажмите ещё раз.' : e.message)); }
@@ -24,7 +24,7 @@ export default function (stage, ctx) {
     ctx.step('play'); let ok = 0;
     for (let i = 0; i < items.length; i++) {
       const it = items[i]; const box = h('div'); stage.replaceChildren(box);
-      const q = v === 'B' ? { q: it.q, o: ['Правда', 'Миф'], a: it.truth ? 0 : 1, why: it.why } : { q: it.q, o: it.options || [], a: +it.answer || 0, why: it.why };
+      const q = it;
       ok += (await ask(box, q, { title: `${v === 'B' ? 'Правда или миф' : 'Викторина'} · ${i + 1} из ${items.length}` })) ? 1 : 0;
       await new Promise(r => box.append(h('div', { style: 'margin-top:10px' }, nextBtn(i + 1 < items.length ? 'Дальше →' : 'Итоги', r))));
     }
