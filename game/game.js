@@ -1,7 +1,7 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121q';
-import { api, store } from '../js/api.js?v=20261121q';
-import { playStep, chime } from './play.js?v=20261121q';
-import { openBriefing } from './theory.js?v=20261121q';
+import { MECH, OPS, SHOP } from './data.js?v=20261121r';
+import { api, store } from '../js/api.js?v=20261121r';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121r';
+import { openBriefing } from './theory.js?v=20261121r';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -50,8 +50,18 @@ function renderHud() {
     <span class="chip chip-rank" title="Звание">${ico('rank')}<span>${esc(S.rank)}</span></span>
     <span class="chip chip-streak" title="Огонёк: дней учёбы подряд">${ico('flame')}<b class="tn">${S.streak}</b>
       ${S.freeze ? `<span class="freeze" title="Заморозка в запасе">${ico('snow')}<b class="tn">${S.freeze}</b></span>` : ''}</span>
-    <span class="chip chip-xp" title="Опыт">${ico('bolt')}<b class="tn">${num(S.xp)}</b></span>`;
+    <span class="chip chip-xp" title="Опыт">${ico('bolt')}<b class="tn">${num(hudXp ?? S.xp)}</b></span>`;
+  // XP grows with a short count-up and a bump of the chip
+  if (hudXp != null && S.xp > hudXp) {
+    const chip = $('#hud .chip-xp'), b = chip.querySelector('b'), from = hudXp, to = S.xp, t0 = performance.now(), D = RMQ.matches ? 1 : 700;
+    replay(chip, 'bump');
+    const step = (t) => { const p = Math.min(1, (t - t0) / D); b.textContent = num(Math.round(from + (to - from) * (1 - Math.pow(1 - p, 3)))); if (p < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
+  hudXp = S.xp;
 }
+let hudXp = null;
+const RMQ = matchMedia('(prefers-reduced-motion: reduce)');
 
 // ---------- map ----------
 function missionHtml(op) {
@@ -127,6 +137,22 @@ function renderOps() {
     </li>`;
   }).join('');
   requestAnimationFrame(drawLinks);
+  markChanges();
+}
+// remember what each node looked like; on the next render pop the ones that just opened or got more stars
+let prevNodes = null;
+function markChanges() {
+  const now = {}; let opened = false;
+  document.querySelectorAll('#ops .node[data-step], #ops .node-brief').forEach((n) => {
+    const key = n.dataset.step || 'b' + (n.dataset.brief || n.closest('.path')?.dataset.op);
+    const locked = n.classList.contains('node-locked'), stars = n.parentElement.querySelectorAll('.stars .st.on').length;
+    now[key] = { locked, stars };
+    const was = prevNodes?.[key]; if (!was) return;
+    if (was.locked && !locked) { n.classList.add('just-open'); opened = true; }
+    if (stars > was.stars) n.parentElement.querySelector('.stars')?.classList.add('stars-new');
+  });
+  if (opened) setTimeout(() => sfx.unlock(), 120);
+  prevNodes = now;
 }
 function drawLinks() {
   document.querySelectorAll('.path').forEach((p) => {
@@ -220,7 +246,7 @@ async function openSheet(key) {
     <p class="muted">${!ready ? 'Штаб ещё готовит эту операцию.' : ss === 'locked' ? (opState(o) === 'locked' ? 'Операция откроется, когда прошлая будет на 30 звёзд.' : s === 1 ? 'Откроется после брифинга: посмотрите видео и прочитайте лекцию.' : `Откроется, когда шаг ${s - 1} получит хотя бы 1 звезду.`) : k == null ? 'Три звезды за ответы без ошибок. Перепроходить можно сколько угодно.' : k === 3 ? 'Шаг на 3 звезды. Повтор даёт немного опыта.' : `Сейчас ${k} ${plural(k, 'звезда', 'звезды', 'звёзд')}. Чтобы закрыть операцию, нужно 3.`}</p>
     <div class="sheet-a">${act ? `<button class="cta cta-sm" type="button" data-play="${o}-${s}">${act}</button>` : ''}<button class="btn btn-ghost" value="close">Закрыть</button></div>
   </form>${k != null ? fbForm(o, s, `${o}.${s} ${MECH[step.m]}: ${step.t}`) : ''}`;
-  sh.showModal();
+  sh.showModal(); sfx.tick();
 }
 
 // ---------- play + reward ----------
@@ -284,6 +310,7 @@ function reward(o, s, step, r) {
   if (r.stars === 0) timers.push(setTimeout(() => chime([392, 330], 0.12, 0.06), 250));
   const tick = (t) => { const p = skip ? 1 : Math.min(1, (t - t0 - xpAt) / D); n.textContent = '+' + Math.max(0, Math.round(to * (p < 0 ? 0 : 1 - Math.pow(1 - p, 3)))); if (p < 1) requestAnimationFrame(tick); else box.classList.add('skip'); };
   requestAnimationFrame(tick);
+  if (r.newBadges?.length || r.rankUp) timers.push(setTimeout(() => sfx.badge(), reduce ? 700 : xpAt + D - 120));
   rw.addEventListener('pointerdown', () => { skip = true; box.classList.add('skip'); timers.forEach(clearTimeout); }, { once: true });
 }
 const STAR0 = 220, STAR_GAP = 280;
@@ -291,7 +318,8 @@ function closeReward() { const b = $('#reward'); b.hidden = true; b.className = 
 
 // ---------- views ----------
 function setView(v) {
-  $('.app').dataset.view = v;
+  const was = $('.app').dataset.view; $('.app').dataset.view = v;
+  if (was && was !== v) { sfx.tick(); const wide = matchMedia('(min-width: 1100px)').matches; if (!wide) replay(v === 'map' ? $('.view-map') : $(`[data-panel="${v}"]`), 'v-in'); }
   document.querySelectorAll('[data-go]').forEach((b) => { const on = b.dataset.go === v; b.classList.toggle('is-on', on); b.setAttribute('aria-current', on ? 'page' : 'false'); });
   if (matchMedia('(min-width: 1100px)').matches && v !== 'map') $(`[data-panel="${v}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   else window.scrollTo({ top: 0 });
@@ -302,7 +330,15 @@ function setTheme(t) {
   try { localStorage.setItem('stand-theme', t); } catch (e) {}
   $('meta[name="theme-color"]').content = t === 'light' ? '#f4f1e8' : '#141414';
 }
-function renderAll() { renderHud(); renderOps(); renderSide(); }
+let introDone = false;
+function renderAll() {
+  renderHud(); renderOps(); renderSide();
+  if (!introDone) { // first paint: cards and map nodes rise in with a light stagger
+    introDone = true; const app = $('.app');
+    stagger($('#ops'), ':scope > .op'); document.querySelectorAll('.op-current .path').forEach((p) => stagger(p, ':scope > .node-wrap', 40, 12)); stagger($('.side'), '.panel');
+    app.classList.add('intro'); setTimeout(() => app.classList.remove('intro'), 1400);
+  }
+}
 
 function entry(msg = '') {
   $('.app').hidden = true; const e = $('#entry'); e.hidden = false;
@@ -343,7 +379,7 @@ document.addEventListener('click', (e) => {
   if (b.dataset.brief) { closeReward(); return briefing(+b.dataset.brief); }
   if (b.dataset.step) return openSheet(b.dataset.step);
   if (b.dataset.buy) return buy(b);
-  if (b.dataset.toggle) { const li = b.closest('.op'); li.classList.toggle('is-open'); b.setAttribute('aria-expanded', li.classList.contains('is-open')); return requestAnimationFrame(drawLinks); }
+  if (b.dataset.toggle) { const li = b.closest('.op'); li.classList.toggle('is-open'); sfx.tick(); b.setAttribute('aria-expanded', li.classList.contains('is-open')); return requestAnimationFrame(drawLinks); }
   if (b.dataset.go) return setView(b.dataset.go);
   if ('closeReward' in b.dataset) return closeReward();
   if ('retry' in b.dataset) return boot();

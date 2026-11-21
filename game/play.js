@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors, clozeMarks } from './content/grade.js?v=20261121q';
-import { MECH } from './data.js?v=20261121q';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261121r';
+import { MECH } from './data.js?v=20261121r';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -42,6 +42,38 @@ export function chime(freqs, gap = 0.07, vol = 0.11) {
     });
   } catch {}
 }
+// soft UI sounds: tiny, short, all behind the same mute toggle
+function tone(f, dur, vol, type = 'sine', f2) {
+  if (!sound.on) return;
+  try {
+    actx ||= new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume();
+    const t = actx.currentTime + 0.005, g = actx.createGain(), o = actx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur + 0.02);
+  } catch {}
+}
+let lastTick = 0;
+export const sfx = {
+  tick() { const n = performance.now(); if (n - lastTick < 45) return; lastTick = n; tone(1320, 0.045, 0.035, 'sine', 990); },
+  page() { // paper swish: short filtered noise
+    if (!sound.on) return;
+    try {
+      actx ||= new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume();
+      const t = actx.currentTime + 0.005, len = 0.16, buf = actx.createBuffer(1, Math.floor(actx.sampleRate * len), actx.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const src = actx.createBufferSource(), bp = actx.createBiquadFilter(), g = actx.createGain(); src.buffer = buf; bp.type = 'bandpass'; bp.Q.value = 0.8;
+      bp.frequency.setValueAtTime(1800, t); bp.frequency.exponentialRampToValueAtTime(4200, t + len);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+      src.connect(bp); bp.connect(g); g.connect(actx.destination); src.start(t); src.stop(t + len);
+    } catch {}
+  },
+  unlock() { chime([659.25, 987.77], 0.09, 0.07); },
+  badge() { chime([783.99, 1046.5, 1318.5, 1568], 0.07, 0.075); },
+};
+// helpers shared by screens: stagger the children in, replay a one-shot class
+export function stagger(parent, sel = ':scope > *', step = 45, max = 10) { if (!parent) return; [...parent.querySelectorAll(sel)].forEach((n, i) => n.style.setProperty('--i', Math.min(i, max))); }
+export function replay(node, cls) { if (!node) return; node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls); }
 const vibrate = ok => { try { if (!ok && navigator.vibrate) navigator.vibrate(30); } catch {} };
 
 export function playStep({ op, n, step, api, onDone, onClose, toast }) {
@@ -57,7 +89,7 @@ export function playStep({ op, n, step, api, onDone, onClose, toast }) {
     el('div', { class: 'play-meta' }, el('span', { class: 'play-k' }, op ? `Операция ${op} · шаг ${n} из 10 · ${MECH[step.m]}` : `Тренировка дня · ${items.length} заданий`), prog), sndBtn);
   const body = el('main', { class: 'play-b' });
   const foot = el('footer', { class: 'play-f' });
-  root.replaceChildren(head, body, foot); root.hidden = false; document.body.classList.add('playing');
+  root.replaceChildren(head, body, foot); root.hidden = false; document.body.classList.add('playing'); replay(root, 'opening');
   root.focus?.();
   const setProg = () => { bar.style.setProperty('--p', Math.min(1, doneCount / graded)); prog.setAttribute('aria-valuenow', doneCount); };
   setProg();
@@ -89,7 +121,9 @@ export function playStep({ op, n, step, api, onDone, onClose, toast }) {
     const it = items[idx];
     const keep = it.type === 'chat' && items[idx - 1]?.type === 'chat';
     if (!keep) body.replaceChildren(); body.className = 'play-b play-' + it.type;
-    try { await R[it.type](it, ctl); } catch (e) { console.error(e); toast?.('Что-то пошло не так, попробуйте ещё раз'); }
+    let run; try { run = R[it.type](it, ctl); } catch (e) { run = Promise.reject(e); }
+    if (!keep) { stagger(body); const my = idx; body.classList.add('step-in'); setTimeout(() => { if (idx === my) body.classList.remove('step-in'); }, 900); }
+    try { await run; } catch (e) { console.error(e); toast?.('Что-то пошло не так, попробуйте ещё раз'); }
   }
   async function finish() {
     body.replaceChildren(el('div', { class: 'play-wait' }, el('span', { class: 'spin', 'aria-hidden': 'true' }), 'Штаб проверяет ответы…'));
@@ -103,6 +137,8 @@ export function playStep({ op, n, step, api, onDone, onClose, toast }) {
   }
   const onKey = e => { if (e.key === 'Escape' && !root.hidden) close(); };
   document.addEventListener('keydown', onKey, { once: false });
+  // a soft tick on every choice inside the task (not on navigation or «Проверить»)
+  body.addEventListener('pointerdown', e => { const b = e.target.closest('button, [role=button], label'); if (b && !b.disabled && !b.closest('.fb') && !b.classList.contains('cta')) sfx.tick(); });
   next();
   return { close };
 }

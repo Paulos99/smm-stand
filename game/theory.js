@@ -1,6 +1,6 @@
 // Operation briefing: video (placeholder until a URL is set in the data), lecture reader in the school's mobile style, lesson materials.
 // The lecture text is paid school content: it comes from the API for signed-in players only and is never stored in this public repo.
-import { chime } from './play.js?v=20261121q';
+import { chime, sfx, sound, replay } from './play.js?v=20261121r';
 
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
@@ -35,9 +35,10 @@ export function openBriefing({ op, api, toast, onDone, onClose }) {
   const chap = el('span', { class: 'th-chap tn' }, '');
   const head = el('header', { class: 'play-h' },
     el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Выйти на карту', onclick: () => close() }, ico('x')),
-    el('div', { class: 'play-meta' }, el('span', { class: 'play-k' }, `Операция ${op} · брифинг`, chap), prog));
+    el('div', { class: 'play-meta' }, el('span', { class: 'play-k' }, `Операция ${op} · брифинг`, chap), prog),
+    el('button', { class: 'icon-btn' + (sound.on ? '' : ' off'), type: 'button', 'aria-label': 'Звук', 'aria-pressed': String(sound.on), onclick: e => { sound.on = !sound.on; e.currentTarget.setAttribute('aria-pressed', String(sound.on)); e.currentTarget.classList.toggle('off', !sound.on); } }, ico('sound')));
   const body = el('main', { class: 'play-b play-theory' }, el('div', { class: 'play-wait' }, el('span', { class: 'spin', 'aria-hidden': 'true' }), 'Загружаем брифинг…'));
-  root.replaceChildren(head, body); root.hidden = false; document.body.classList.add('playing'); root.scrollTop = 0; root.focus?.();
+  root.replaceChildren(head, body); root.hidden = false; document.body.classList.add('playing'); replay(root, 'opening'); root.scrollTop = 0; root.focus?.(); sfx.page();
   const onKey = e => { if (e.key === 'Escape' && !root.hidden) close(); };
   document.addEventListener('keydown', onKey);
   function close(done) {
@@ -63,8 +64,8 @@ export function openBriefing({ op, api, toast, onDone, onClose }) {
     const large = localStorage.getItem('game-read-large') === '1';
     const toc = el('details', { class: 'reader-toc' },
       el('summary', {}, el('span', {}, 'Содержание'), el('span', { class: 'tn muted' }, `${L.sections.length} ${plural(L.sections.length, 'глава', 'главы', 'глав')}`), ico('chev', 'toc-chev')),
-      el('ol', {}, L.sections.map((s, i) => el('li', {}, el('a', { href: '#th-s-' + i, onclick: e => { e.preventDefault(); toc.open = false; document.getElementById('th-s-' + i)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); } }, s.title)))));
-    const sizeBtn = el('button', { class: 'reader-size', type: 'button', 'aria-pressed': String(large), onclick: () => { const on = !reader.classList.contains('large-text'); reader.classList.toggle('large-text', on); sizeBtn.setAttribute('aria-pressed', String(on)); localStorage.setItem('game-read-large', on ? '1' : '0'); } }, 'Аа · Крупнее');
+      el('ol', {}, L.sections.map((s, i) => el('li', {}, el('a', { href: '#th-s-' + i, onclick: e => { e.preventDefault(); toc.open = false; sfx.page(); document.getElementById('th-s-' + i)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }); } }, s.title)))));
+    const sizeBtn = el('button', { class: 'reader-size', type: 'button', 'aria-pressed': String(large), onclick: () => { sfx.tick(); const on = !reader.classList.contains('large-text'); reader.classList.toggle('large-text', on); sizeBtn.setAttribute('aria-pressed', String(on)); localStorage.setItem('game-read-large', on ? '1' : '0'); } }, 'Аа · Крупнее');
     const rbody = el('div', { class: 'reader-body' }, L.sections.map((s, i) => el('section', { id: 'th-s-' + i, class: 'reader-sec' },
       i === 0 && s.title.trim() === L.title.trim() ? null : el('h3', {}, s.title),
       s.blocks.map(b => b.type === 'list' ? el('ul', {}, b.items.map(t => el('li', {}, t))) : el('p', {}, b.text)))));

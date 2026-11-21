@@ -824,3 +824,44 @@ html:has(#play:not([hidden])),body:has(#play:not([hidden])){overflow:hidden}
 @media (prefers-reduced-motion:reduce){.node.just-open{animation:none}}
 .brief-wrap .bubble{white-space:nowrap}
 .th-school .ic{fill:none!important;stroke:currentColor;color:inherit;width:17px;height:17px}
+
+/* ---------- motion polish: short, transform/opacity only, never blocks input ---------- */
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes sheetup{from{opacity:0;transform:translateY(28px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes fold{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+/* first paint */
+.app.intro #ops>.op,.app.intro .side .panel{animation:rise .5s var(--spring) both;animation-delay:calc(var(--i,0)*60ms)}
+.app.intro .op-current .path>.node-wrap{animation:rise .45s var(--spring) both;animation-delay:calc(160ms + var(--i,0)*40ms)}
+/* overlays: task player and briefing slide up from the map */
+.play.opening{animation:sheetup .36s var(--spring)}
+.play-b.step-in>*{animation:rise .38s var(--spring) both;animation-delay:calc(var(--i,0)*45ms)}
+.play-b.play-brief.step-in>*,.play-b.play-story.step-in>*{animation-name:fadein}
+/* tabs / views */
+.v-in{animation:rise .32s var(--spring)}
+/* expand / collapse operations */
+.op.is-open:not(.op-current) .op-path{animation:fold .32s var(--spring)}
+/* sheet (step card) */
+.sheet[open] .sheet-in{animation:sheetup .34s var(--spring)}
+.sheet[open]::backdrop{animation:fadein .25s ease}
+/* XP chip */
+.chip-xp.bump{animation:bump .5s var(--spring)}
+.chip-xp.bump .ic{animation:bump .5s .08s var(--spring)}
+/* stars that just grew on the map */
+.stars-new .st.on{animation:starpop .6s var(--spring) both}
+.stars-new .st.on:nth-child(2){animation-delay:.09s}
+.stars-new .st.on:nth-child(3){animation-delay:.18s}
+/* press states: respond on pointer-down */
+.btn,.icon-btn,.nav-i,.tab,.chip,.op-h,.th-file,.reader-size{transition:transform .1s ease-out,background-color .2s,border-color .2s,color .2s}
+.btn:active,.icon-btn:active,.nav-i:active,.op-h:active:not(:disabled){transform:scale(.97)}
+.node{transition:transform .14s var(--spring)}
+@media (hover:hover){.node:not(.node-locked):hover{transform:scale(1.05)}}
+.tab.is-on svg,.nav-i.is-on svg{animation:bump .4s var(--spring)}
+/* toast slides with a spring */
+.toast{transition:transform .32s var(--spring),opacity .2s}
+@media (prefers-reduced-motion:reduce){
+  .app.intro #ops>.op,.app.intro .side .panel,.app.intro .op-current .path>.node-wrap,.play-b.step-in>*,.v-in,.op.is-open .op-path,.sheet[open] .sheet-in,.play.opening{animation:fadein .15s ease both!important;animation-delay:0s!important}
+  .chip-xp.bump,.chip-xp.bump .ic,.stars-new .st.on,.tab.is-on svg,.nav-i.is-on svg{animation:none}
+  .node:hover{transform:none}
+}
