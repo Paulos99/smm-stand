@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors } from './content/grade.js?v=20261121m';
-import { MECH } from './data.js?v=20261121m';
+import { itemErrors } from './content/grade.js?v=20261121n';
+import { MECH } from './data.js?v=20261121n';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -513,14 +513,14 @@ R.brief = (it, c) => new Promise(done => {
     const text = input.value.trim(); if (!text || busy) return; busy = true; sendB.disabled = true; input.value = '';
     const b = bubble('out', text); b.classList.add('sending'); thread.append(b); requestAnimationFrame(() => b.classList.remove('sending'));
     const t = el('div', { class: 'bub bub-in typing' }, el('span', { class: 'dots', 'aria-hidden': 'true' }, el('i'), el('i'), el('i')), el('span', { class: 'typing-t' }, `${who.name} печатает…`));
-    thread.append(t); t.scrollIntoView({ block: 'nearest' });
+    thread.append(t); thread.scrollTo({ top: thread.scrollHeight, behavior: 'smooth' });
     try {
       const r = await c.api('/api/game/brief', { method: 'POST', body: { sid, text, op: c.op, step: c.n }, timeout: 40000 });
       t.remove(); const before = covered.size; r.covered.forEach(x => covered.add(x)); asked = r.asked;
       thread.append(bubble('in', r.reply)); if (covered.size > before) beep(true);
       draw();
     } catch (e) { t.remove(); thread.append(el('p', { class: 'sys' }, e.message)); input.value = text; }
-    busy = false; sendB.disabled = false; thread.lastElementChild?.scrollIntoView({ block: 'nearest' }); input.focus({ preventScroll: true });
+    busy = false; sendB.disabled = false; thread.scrollTo({ top: thread.scrollHeight, behavior: 'smooth' }); input.focus({ preventScroll: true });
   }
   function finish() { c.answer({ sid }); done(); }
 });

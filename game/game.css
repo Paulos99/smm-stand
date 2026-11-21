@@ -718,3 +718,14 @@ html:has(#play:not([hidden])),body:has(#play:not([hidden])){overflow:hidden}
 .cv-el.found{outline:3px solid #ff6b63;outline-offset:2px}
 .cv-cap{margin:8px 0 0;font-size:12.5px;color:var(--muted)}
 .spot.miss{animation:shake .3s}
+/* brief: fixed frame, the thread is the only scrolling region */
+.play:has(.play-b.play-brief){overflow:hidden}
+.play-b.play-brief{flex:1 1 0;min-height:0;display:flex;flex-direction:column;padding-bottom:6px}
+.play-brief>.brief-top{position:relative;top:auto;z-index:1;flex:none;margin:0 0 10px;padding:0 0 10px;background:none}
+.play-brief>.chat-top{flex:none}
+.play-brief>.thread{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 2px 8px;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--muted) 35%,transparent) transparent;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 12px);mask-image:linear-gradient(to bottom,transparent 0,#000 12px)}
+.play-brief>.thread::-webkit-scrollbar{width:6px}
+.play-brief>.thread::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--muted) 35%,transparent);border-radius:6px}
+.play-brief>.thread>*{flex:none}
+.play-brief>.brief-hint{flex:none;max-height:30vh;overflow:auto}
+@media (max-height:700px){.play-brief .brief-list:not([open]) .checks{display:none}.play-brief>.brief-top{margin-bottom:6px;padding-bottom:6px}}
