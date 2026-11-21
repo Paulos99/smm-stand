@@ -1,6 +1,6 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121l';
-import { api, store } from '../js/api.js?v=20261121l';
-import { playStep, chime } from './play.js?v=20261121l';
+import { MECH, OPS, SHOP } from './data.js?v=20261121m';
+import { api, store } from '../js/api.js?v=20261121m';
+import { playStep, chime } from './play.js?v=20261121m';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -12,7 +12,8 @@ const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZon
 const CONTENT = {};
 let S = null; // server state
 
-async function content(op) { if (!CONTENT[op]) CONTENT[op] = (await import(`./content/op${op}.js?v=20261121l`)).default; return CONTENT[op]; }
+// steps come from the API (answers are not in the public repo); refetched after progress so newly unlocked steps arrive
+async function content(op, fresh) { if (!CONTENT[op] || fresh) CONTENT[op] = (await api('/api/game/op?op=' + op)).steps; return CONTENT[op]; }
 const starsOf = (op) => S?.stars?.[op] || Array(10).fill(null);
 const opState = (n) => (S.open.includes(n) ? (n < Math.max(...S.open) ? 'done' : 'current') : 'locked');
 const curOp = () => Math.max(...S.open);
@@ -132,20 +133,34 @@ function drawLinks() {
 function renderSide() {
   const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
   const span = Math.max(1, (S.nextXp || S.xp) - S.floor); const pct = S.nextXp ? (S.xp - S.floor) / span : 1;
+  const allStars = Object.values(S.stars || {}).flat().reduce((a, b) => a + (b || 0), 0);
+  const opsDone = OPS.filter((o) => (S.stars[o.n] || []).length === 10 && S.stars[o.n].every((k) => k === 3)).length;
+  const played = Object.values(S.stars || {}).flat().some((k) => k != null);
+  const shop = S.shop || SHOP;
   $('#side').innerHTML = `
     <section class="panel" data-panel="daily" aria-labelledby="p-daily">
       <h2 id="p-daily">${ico('flame', 'h-ic flame')}Тренировка дня</h2>
-      <p class="muted">Огонёк горит, пока вы учитесь каждый день: подходит любой пройденный шаг. Скоро здесь появится трёхминутный повтор слабых мест.</p>
+      <p class="muted">${S.trainedToday ? 'Сегодня тренировка зачтена, огонёк горит. Можно повторить ещё раз ради практики.' : played ? 'Шесть коротких заданий из пройденных шагов. Чаще всего попадаются те, где у вас меньше трёх звёзд.' : 'Шесть коротких заданий. Пока шагов мало, берём из начала первой операции.'}</p>
+      <div class="train-cta"><button class="cta cta-sm" type="button" data-play="0-0">${S.trainedToday ? 'Потренироваться ещё' : 'Начать тренировку'}</button><span class="fine">${S.trainedToday ? 'Повтор: +2 опыта' : 'До +25 опыта, раз в день'}</span></div>
       <ol class="week">${days.map((d, i) => `<li class="day day-${S.week[i] || 'none'}"><span class="day-c">${S.week[i] === 'ok' ? ico('check') : S.week[i] === 'freeze' ? ico('snow') : ''}</span><span class="day-l">${d}</span></li>`).join('')}</ol>
-      <p class="fine">Рекорд: <b class="tn">${S.best}</b> ${plural(S.best, 'день', 'дня', 'дней')}. За каждые 7 дней подряд даём заморозку: она спасёт огонёк, если пропустите день.</p>
+      <p class="fine">Огонёк: <b class="tn">${S.streak}</b> · рекорд <b class="tn">${S.best}</b> ${plural(S.best, 'день', 'дня', 'дней')}. День засчитывается за любой шаг или тренировку. За каждые 7 дней подряд даём заморозку, она спасёт огонёк при пропуске.</p>
     </section>
     <section class="panel" data-panel="agent" aria-labelledby="p-agent">
       <h2 id="p-agent">${ico('rank', 'h-ic')}Агент ${esc(S.name)}</h2>
       <div class="rank-row"><span>${esc(S.rank)}</span>${S.nextXp ? `<span class="tn muted">${num(S.xp)} / ${num(S.nextXp)}</span><span>${esc(S.nextRank)}</span>` : '<span>Высшее звание</span>'}</div>
       <div class="bar bar-blue"><i style="--p:${Math.min(1, pct)}"></i></div>
-      <p class="fine">${S.nextXp ? `До звания «${esc(S.nextRank)}» ${num(S.nextXp - S.xp)} опыта.` : 'Вы на вершине штаба.'}</p>
-      <h3>Знаки отличия</h3>
+      <p class="fine">${S.nextXp ? `До звания «${esc(S.nextRank)}» ${num(S.nextXp - S.xp)} опыта. Звание считается по всему опыту, обмен в Лавке его не снижает.` : 'Вы на вершине штаба.'}</p>
+      <dl class="stats">
+        <div><dt>Звёзды</dt><dd class="tn">${allStars} <small>из 180</small></dd></div>
+        <div><dt>Операции</dt><dd class="tn">${opsDone} <small>из 6</small></dd></div>
+        <div><dt>Огонёк</dt><dd class="tn">${S.streak} <small>рекорд ${S.best}</small></dd></div>
+        <div><dt>Тренировки</dt><dd class="tn">${S.trainings || 0}</dd></div>
+        <div><dt>Опыт</dt><dd class="tn">${num(S.xp)}</dd></div>
+        <div><dt>Заморозки</dt><dd class="tn">${S.freeze}</dd></div>
+      </dl>
+      <h3>Знаки отличия <span class="muted tn">${S.badges.filter((a) => a.on).length} из ${S.badges.length}</span></h3>
       <ul class="ach">${S.badges.map((a) => `<li class="${a.on ? '' : 'off'}"><img src="../assets/stickers/${a.st}.webp" alt="" width="72" height="72" loading="lazy"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></li>`).join('')}</ul>
+      ${S.bought?.length ? `<h3>Получено в Лавке</h3><ul class="bought">${S.bought.slice().reverse().map((b) => `<li><span>${esc(b.t)}</span><span class="tn muted">${new Date(b.at).toLocaleDateString('ru-RU')}</span></li>`).join('')}</ul>` : ''}
       <div class="agent-foot">
         ${S.role === 'teacher' ? `<a class="btn-ghost btn-s" href="../#/dash">${ico('chart')}Статистика</a>` : ''}
         <button class="btn-ghost btn-s" type="button" data-logout>${ico('user')}Сменить имя</button>
@@ -153,10 +168,16 @@ function renderSide() {
     </section>
     <section class="panel" data-panel="shop" aria-labelledby="p-shop">
       <h2 id="p-shop">${ico('bag', 'h-ic')}Лавка допусков</h2>
-      <p class="muted">Баланс <b class="tn">${num(S.xp)}</b> опыта. Цену видно сразу, без сюрпризов.</p>
-      <ul class="shop">${SHOP.map((s) => `<li><span>${s.t}</span><span class="price tn ${s.p <= S.xp ? 'ok' : ''}">${ico('bolt')}${num(s.p)}</span></li>`).join('')}</ul>
-      <p class="fine">Обмен включим в следующем обновлении. Это тестовые награды: на стенде они ничего реального не выдают.</p>
+      <p class="test-note">${ico('lock')}Тестовый режим: опыт списывается по-настоящему, но реальные награды стенд пока не выдаёт.</p>
+      <p class="muted">На счёте <b class="tn">${num(S.balance ?? S.xp)}</b> опыта. Цена видна сразу, звание при обмене не падает.</p>
+      <ul class="shop">${shop.map((it) => { const can = (S.balance ?? 0) >= it.p; const own = S.bought?.some((b) => b.id === it.id); return `<li><span>${esc(it.t)}${own ? ' <small class="own">есть</small>' : ''}</span><span class="price tn ${can ? 'ok' : ''}">${ico('bolt')}${num(it.p)}</span><button class="btn-ghost btn-s buy" type="button" data-buy="${it.id}" ${can ? '' : 'disabled'} aria-label="Обменять ${num(it.p)} опыта на «${esc(it.t)}»">${can ? 'Обменять' : `ещё ${num(it.p - (S.balance ?? 0))}`}</button></li>`; }).join('')}</ul>
     </section>`;
+}
+async function buy(btn) {
+  if (btn.dataset.sure !== '1') { btn.dataset.sure = '1'; const p = (S.shop || SHOP).find((x) => x.id === btn.dataset.buy).p; btn.textContent = `Списать ${num(p)}?`; btn.classList.add('sure'); setTimeout(() => { if (btn.isConnected && btn.dataset.sure === '1') { btn.dataset.sure = ''; btn.textContent = 'Обменять'; btn.classList.remove('sure'); } }, 4000); return; }
+  btn.disabled = true;
+  try { const r = await api('/api/game/buy', { method: 'POST', body: { id: btn.dataset.buy, tz: TZ } }); S = r.state; renderAll(); toast(`Готово: «${r.item}». Это тестовая награда.`); }
+  catch (e) { toast(e.message); btn.disabled = false; }
 }
 
 // ---------- step sheet ----------
@@ -189,15 +210,21 @@ async function openSheet(key) {
 async function play(key) {
   const [o, s] = key.split('-').map(Number);
   if ($('#sheet').open) $('#sheet').close();
-  let steps; try { steps = await content(o); } catch { return toast('Эта операция ещё готовится'); }
-  const step = steps[s - 1]; if (!step) return toast('Этот шаг ещё готовится');
+  if (o === 0) return training();
+  let steps; try { steps = await content(o); if (steps[s - 1]?.locked) steps = await content(o, true); } catch (e) { return toast(e.message || 'Эта операция ещё готовится'); }
+  const step = steps[s - 1]; if (!step) return toast('Этот шаг ещё готовится'); if (step.locked) return toast('Сначала пройдите предыдущий шаг');
   playStep({ op: o, n: s, step, api, toast, onDone: (r) => { S = r.state; renderAll(); reward(o, s, step, r); }, onClose: () => { requestAnimationFrame(drawLinks); } });
 }
+async function training() {
+  let t; try { t = await api('/api/game/training?tz=' + encodeURIComponent(TZ)); } catch (e) { return toast(e.message); }
+  playStep({ op: 0, n: 0, step: t.step, api, toast, onDone: (r) => { S = r.state; renderAll(); reward(0, 0, t.step, r); }, onClose: () => { requestAnimationFrame(drawLinks); } });
+}
 function reward(o, s, step, r) {
-  const box = $('#reward'); const next = s < 10 && r.stars >= 1 ? s + 1 : 0;
-  const head = r.stars === 3 ? 'Чистая работа, агент!' : r.stars === 2 ? 'Почти идеально' : r.stars === 1 ? 'Шаг засчитан' : 'Пока не засчитано';
-  const sub = r.stars === 3 ? (r.opDone ? 'Операция закрыта на все 30 звёзд. Допуск к следующей получен!' : 'Все три звезды. Так держать.') : r.stars >= 1 ? 'Для допуска к следующей операции нужно 3 звезды. Можно перепройти сейчас или позже.' : 'Нужна хотя бы 1 звезда, чтобы открыть следующий шаг. Попробуйте ещё раз, вы справитесь.';
-  const err = step.items[0].type === 'brief' ? `Фактов в брифе: ${r.total - r.errors} из ${r.total}` : r.errors ? `Ошибок: ${r.errors}` : 'Без ошибок';
+  const box = $('#reward'); const next = o && s < 10 && r.stars >= 1 ? s + 1 : 0; const nextOp = o && r.opDone && o < 6 && S.ops.includes(o + 1);
+  const head = !o ? (r.stars >= 1 ? 'Тренировка зачтена' : 'Тренировка не зачтена') : r.stars === 3 ? 'Чистая работа, агент!' : r.stars === 2 ? 'Почти идеально' : r.stars === 1 ? 'Шаг засчитан' : 'Пока не засчитано';
+  const sub = !o ? (r.stars >= 1 ? (r.gain > 2 ? 'Огонёк горит, слабые места подтянуты. Новая подборка будет завтра.' : 'Повтор засчитан. Опыт за тренировку даём раз в день.') : 'Нужна хотя бы 1 звезда. Попробуйте ещё раз.') : r.stars === 3 ? (r.opDone ? 'Операция закрыта на все 30 звёзд. Допуск к следующей получен!' : 'Все три звезды. Так держать.') : r.stars >= 1 ? 'Для допуска к следующей операции нужно 3 звезды. Можно перепройти сейчас или позже.' : 'Нужна хотя бы 1 звезда, чтобы открыть следующий шаг. Попробуйте ещё раз, вы справитесь.';
+  const kind = step.items[0].type;
+  const err = kind === 'field' ? `Лучшая оценка куратора: ${r.score ?? 0} из 10` : kind === 'storm' ? `Рабочих идей: ${r.total - r.errors} из ${r.total}` : step.items[0].type === 'brief' ? `Фактов в брифе: ${r.total - r.errors} из ${r.total}` : r.errors ? `Ошибок: ${r.errors}` : 'Без ошибок';
   box.innerHTML = `<div class="rw" role="dialog" aria-modal="true" aria-labelledby="rw-t" tabindex="-1">
     <div class="rw-stars${r.stars === 3 ? ' all' : ''}" role="img" aria-label="Звёзд: ${r.stars} из 3">${[0, 1, 2].map((i) => `<span class="rsw ${i < r.stars ? 'on' : ''}" style="--d:${STAR0 + i * STAR_GAP}ms">${i < r.stars ? `<i class="rs-glow"></i><i class="rs-ring"></i><i class="rs-sp">${[0, 1, 2, 3, 4, 5, 6, 7].map((k) => `<b style="--a:${k * 45 + (k % 2 ? 0 : 22)}deg"></b>`).join('')}</i>` : ''}<svg class="rs" aria-hidden="true"><use href="#i-star"/></svg></span>`).join('')}</div>
     <h2 id="rw-t">${head}</h2>
@@ -206,11 +233,11 @@ function reward(o, s, step, r) {
     ${r.rankUp ? `<p class="rw-rank">${ico('rank')}Новое звание: <b>${esc(r.rankUp)}</b></p>` : ''}
     ${r.newBadges?.length ? `<ul class="rw-badges">${r.newBadges.map((b) => `<li><img src="../assets/stickers/${b.st}.webp" alt="" width="96" height="96"><b>${esc(b.t)}</b><span>${esc(b.d)}</span></li>`).join('')}</ul>` : ''}
     <div class="rw-a">
-      ${next ? `<button class="cta cta-sm" type="button" data-play="${o}-${next}">Следующий шаг</button>` : ''}
+      ${next ? `<button class="cta cta-sm" type="button" data-play="${o}-${next}">Следующий шаг</button>` : nextOp ? `<button class="cta cta-sm" type="button" data-play="${o + 1}-1">Операция ${o + 1}</button>` : ''}
       ${r.stars < 3 ? `<button class="${next ? 'btn btn-ghost' : 'cta cta-sm'}" type="button" data-play="${o}-${s}">Перепройти</button>` : ''}
       <button class="btn btn-ghost" type="button" data-close-reward>На карту</button>
     </div>
-    ${fbForm(o, s, `${o}.${s} ${MECH[step.m]}: ${step.t}`)}
+    ${fbForm(o, s, o ? `${o}.${s} ${MECH[step.m]}: ${step.t}` : 'Тренировка дня')}
   </div>`;
   box.hidden = false; document.body.classList.add('playing');
   const rw = box.firstElementChild; rw.focus({ preventScroll: true });
@@ -285,6 +312,7 @@ document.addEventListener('click', (e) => {
   const b = e.target.closest('button, a'); if (!b) return;
   if (b.dataset.play) { closeReward(); return play(b.dataset.play); }
   if (b.dataset.step) return openSheet(b.dataset.step);
+  if (b.dataset.buy) return buy(b);
   if (b.dataset.toggle) { const li = b.closest('.op'); li.classList.toggle('is-open'); b.setAttribute('aria-expanded', li.classList.contains('is-open')); return requestAnimationFrame(drawLinks); }
   if (b.dataset.go) return setView(b.dataset.go);
   if ('closeReward' in b.dataset) return closeReward();
