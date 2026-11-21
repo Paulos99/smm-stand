@@ -1,6 +1,7 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121p';
-import { api, store } from '../js/api.js?v=20261121p';
-import { playStep, chime } from './play.js?v=20261121p';
+import { MECH, OPS, SHOP } from './data.js?v=20261121q';
+import { api, store } from '../js/api.js?v=20261121q';
+import { playStep, chime } from './play.js?v=20261121q';
+import { openBriefing } from './theory.js?v=20261121q';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -23,9 +24,12 @@ function current(op) {
   if (i < 0) i = st.findIndex((k) => k < 3);
   return i < 0 ? -1 : i;
 }
+// theory first: step 1 opens only after the operation briefing (older API without lectures → no gate)
+const briefed = (op) => !S?.lectures?.includes(op) || (S.briefed || []).includes(op);
 function stepState(op, i) {
   const st = starsOf(op), k = st[i];
   if (opState(op) === 'locked') return 'locked';
+  if (i === 0 && !briefed(op)) return 'locked';
   if (opState(op) === 'current' && i === current(op)) return 'now';
   if (i > 0 && !(st[i - 1] >= 1)) return 'locked';
   if (k == null) return 'open';
@@ -61,7 +65,10 @@ function missionHtml(op) {
     <h1 class="mission-t">${esc(meta.title)}</h1>
     <p class="mission-meta"><span>Операция ${op.n} из ${OPS.length}</span><span class="dot" aria-hidden="true"></span><span class="tn">${got} из 30 ${ico('star', 'st on')}</span></p>
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="30" aria-valuenow="${got}" aria-label="Звёзды операции"><i style="--p:${got / 30}"></i></div>
-    ${ready ? `<button class="cta" type="button" data-play="${op.n}-${ci + 1}">
+    ${ready && !briefed(op.n) ? `<button class="cta" type="button" data-brief="${op.n}">
+      <span class="cta-main">Начать с брифинга ${ico('book')}</span>
+      <span class="cta-sub">Видеоурок, лекция и материалы · потом шаг 1</span>
+    </button>` : ready ? `<button class="cta" type="button" data-play="${op.n}-${ci + 1}">
       <span class="cta-main">${fresh ? 'Начать миссию' : 'Продолжить миссию'} ${ico('play', 'fill')}</span>
       <span class="cta-sub">Шаг ${ci + 1} из 10 · ${MECH[step.m]}: ${esc(step.t)}</span>
     </button>` : `<p class="soon">${ico('lock')} Штаб готовит эту операцию. Откроем в ближайшем обновлении.</p>`}
@@ -76,7 +83,16 @@ function strip(op) {
 }
 function path(op) {
   const st = starsOf(op.n);
-  return `<div class="path" data-op="${op.n}"><svg class="links" aria-hidden="true"></svg>${op.steps.map((s, i) => {
+  const bd = briefed(op.n), bs = opState(op.n) === 'locked' ? 'locked' : bd ? 'gold' : 'now';
+  const brief = S.lectures?.includes(op.n) ? `<div class="node-wrap brief-wrap" style="--x:-.6">
+      ${bs === 'now' ? '<span class="bubble">Сначала теория</span>' : ''}
+      <button class="node node-brief node-${bs}" type="button" ${bs === 'locked' ? 'disabled' : `data-brief="${op.n}"`} aria-label="Брифинг: видеоурок, лекция и материалы. ${bs === 'gold' ? 'пройден' : bs === 'now' ? 'начните отсюда' : 'закрыт'}">
+        ${ico(bs === 'locked' ? 'lock' : 'book', 'node-ic')}
+        ${bs === 'gold' ? `<span class="badge badge-ok">${ico('check')}</span>` : ''}
+      </button>
+      <span class="node-t brief-t"><b>Брифинг</b>Видео и лекция</span>
+    </div>` : '';
+  return `<div class="path" data-op="${op.n}"><svg class="links" aria-hidden="true"></svg>${brief}${op.steps.map((s, i) => {
     const ss = stepState(op.n, i);
     const ev = s.m === 'dossier' ? 'ev-dossier' : s.m === 'boss' ? 'ev-boss' : '';
     const lab = ss === 'locked' ? 'закрыт' : ss === 'now' ? 'текущий шаг' : st[i] == null ? 'не начат' : `${st[i]} из 3 звёзд`;
@@ -201,7 +217,7 @@ async function openSheet(key) {
     <p class="sheet-k">Операция ${o} · шаг ${s} из 10 · ${MECH[step.m]}</p>
     <h2 id="sheet-t">${esc(step.t)}</h2>
     ${k != null ? starRow(k, 'lg') : ''}
-    <p class="muted">${!ready ? 'Штаб ещё готовит эту операцию.' : ss === 'locked' ? (opState(o) === 'locked' ? 'Операция откроется, когда прошлая будет на 30 звёзд.' : `Откроется, когда шаг ${s - 1} получит хотя бы 1 звезду.`) : k == null ? 'Три звезды за ответы без ошибок. Перепроходить можно сколько угодно.' : k === 3 ? 'Шаг на 3 звезды. Повтор даёт немного опыта.' : `Сейчас ${k} ${plural(k, 'звезда', 'звезды', 'звёзд')}. Чтобы закрыть операцию, нужно 3.`}</p>
+    <p class="muted">${!ready ? 'Штаб ещё готовит эту операцию.' : ss === 'locked' ? (opState(o) === 'locked' ? 'Операция откроется, когда прошлая будет на 30 звёзд.' : s === 1 ? 'Откроется после брифинга: посмотрите видео и прочитайте лекцию.' : `Откроется, когда шаг ${s - 1} получит хотя бы 1 звезду.`) : k == null ? 'Три звезды за ответы без ошибок. Перепроходить можно сколько угодно.' : k === 3 ? 'Шаг на 3 звезды. Повтор даёт немного опыта.' : `Сейчас ${k} ${plural(k, 'звезда', 'звезды', 'звёзд')}. Чтобы закрыть операцию, нужно 3.`}</p>
     <div class="sheet-a">${act ? `<button class="cta cta-sm" type="button" data-play="${o}-${s}">${act}</button>` : ''}<button class="btn btn-ghost" value="close">Закрыть</button></div>
   </form>${k != null ? fbForm(o, s, `${o}.${s} ${MECH[step.m]}: ${step.t}`) : ''}`;
   sh.showModal();
@@ -212,9 +228,21 @@ async function play(key) {
   const [o, s] = key.split('-').map(Number);
   if ($('#sheet').open) $('#sheet').close();
   if (o === 0) return training();
+  if (s === 1 && !briefed(o)) return briefing(o);
   let steps; try { steps = await content(o); if (steps[s - 1]?.locked) steps = await content(o, true); } catch (e) { return toast(e.message || 'Эта операция ещё готовится'); }
   const step = steps[s - 1]; if (!step) return toast('Этот шаг ещё готовится'); if (step.locked) return toast('Сначала пройдите предыдущий шаг');
   playStep({ op: o, n: s, step, api, toast, onDone: (r) => { S = r.state; renderAll(); reward(o, s, step, r); }, onClose: () => { requestAnimationFrame(drawLinks); } });
+}
+function briefing(o) {
+  if ($('#sheet').open) $('#sheet').close();
+  openBriefing({ op: o, api, toast,
+    onDone: (r, was) => {
+      if (r?.state) { S = r.state; renderAll(); }
+      if (r?.gain) toast(`Брифинг пройден · +${r.gain} опыта. Шаг 1 открыт`);
+      if (was || r) requestAnimationFrame(() => { const n = document.querySelector(`.path[data-op="${o}"] [data-step="${o}-1"]`); n?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); n?.classList.add('just-open'); });
+      if (was) play(`${o}-1`);
+    },
+    onClose: () => requestAnimationFrame(drawLinks) });
 }
 async function training() {
   let t; try { t = await api('/api/game/training?tz=' + encodeURIComponent(TZ)); } catch (e) { return toast(e.message); }
@@ -312,6 +340,7 @@ async function boot() {
 document.addEventListener('click', (e) => {
   const b = e.target.closest('button, a'); if (!b) return;
   if (b.dataset.play) { closeReward(); return play(b.dataset.play); }
+  if (b.dataset.brief) { closeReward(); return briefing(+b.dataset.brief); }
   if (b.dataset.step) return openSheet(b.dataset.step);
   if (b.dataset.buy) return buy(b);
   if (b.dataset.toggle) { const li = b.closest('.op'); li.classList.toggle('is-open'); b.setAttribute('aria-expanded', li.classList.contains('is-open')); return requestAnimationFrame(drawLinks); }
