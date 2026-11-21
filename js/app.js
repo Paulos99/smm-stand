@@ -23,10 +23,10 @@ applyTheme();
 function header() {
   const u = store.user; const box = $('#header-actions'); box.replaceChildren(themeBtn);
   if (!u) return;
-  box.prepend(
+  box.prepend(...[
     h('span', { class: 'who' }, store.tester || u.name),
     u.role === 'teacher' ? h('a', { class: 'pill-btn', href: '#/dash', 'aria-label': 'Статистика' }, matchMedia('(max-width:420px)').matches ? '📊' : 'Статистика') : null,
-    h('button', { class: 'pill-btn ghost', type: 'button', onclick: async () => { try { await api('/api/logout', { method: 'POST' }); } catch {} store.clear(); location.hash = '#/login'; } }, 'Выйти'));
+    h('button', { class: 'pill-btn ghost', type: 'button', onclick: async () => { try { await api('/api/logout', { method: 'POST' }); } catch {} store.clear(); location.hash = '#/login'; } }, 'Выйти')].filter(Boolean));
 }
 
 async function loadBase() {
