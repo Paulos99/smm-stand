@@ -1,4 +1,4 @@
-import { MECH, OPS, STATE, SHOP } from './data.js?v=20261121g';
+import { MECH, OPS, STATE, SHOP } from './data.js?v=20261121h';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -32,6 +32,7 @@ function missionHtml() {
   const op = OPS[STATE.current.op - 1];
   const st = starsOf(op.n), got = sum(st);
   const step = op.steps[STATE.current.step - 1];
+  const fresh = st.every((k) => k == null);
   const retry = st.map((k, i) => (k != null && k < 3 && i !== STATE.current.step - 1 ? i + 1 : 0)).filter(Boolean);
   return `<div class="mission">
     <img class="mission-sticker" src="../assets/stickers/news-phone.webp" alt="" width="132" height="132" loading="lazy">
@@ -39,7 +40,7 @@ function missionHtml() {
     <p class="mission-meta"><span>Операция ${op.n} из ${OPS.length}</span><span class="dot" aria-hidden="true"></span><span class="tn">${got} из 30 ${ico('star', 'st on')}</span></p>
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="30" aria-valuenow="${got}" aria-label="Звёзды операции"><i style="--p:${got / 30}"></i></div>
     <button class="cta" type="button" data-step="${op.n}-${STATE.current.step}">
-      <span class="cta-main">Продолжить миссию ${ico('play', 'fill')}</span>
+      <span class="cta-main">${fresh ? 'Начать миссию' : 'Продолжить миссию'} ${ico('play', 'fill')}</span>
       <span class="cta-sub">Шаг ${STATE.current.step} из 10 · ${MECH[step.m]}: ${esc(step.t)}</span>
     </button>
     <p class="mission-rule">Следующая операция откроется, когда у всех 10 шагов будет по 3 звезды.${retry.length ? ` Шаг ${retry.join(', ')} стоит перепройти.` : ''}</p></div>`;
