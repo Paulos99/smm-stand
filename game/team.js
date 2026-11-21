@@ -1,5 +1,6 @@
 // Team: leagues, leaderboards (week / all time / my league), partner battles. All checks are on the server; only display names come here.
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121t';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121u';
+import { img } from './missions.js?v=20261121u';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = (n) => Number(n || 0).toLocaleString('ru-RU');
@@ -21,7 +22,7 @@ export function badge(i = 0, size = 40, cls = '') {
     ${chev}</svg>`;
 }
 const initials = (n) => esc(String(n || '?').trim().slice(0, 1).toUpperCase());
-export const avatar = (p, size = 40) => p?.photo ? `<img class="ava" src="${esc(p.photo)}" alt="" width="${size}" height="${size}" loading="lazy">` : `<span class="ava ava-i" style="--s:${size}px" aria-hidden="true">${initials(p?.name)}</span>`;
+export const avatar = (p, size = 40) => p?.photo ? `<img class="ava" src="${esc(img(p.photo))}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px" loading="lazy">` : `<span class="ava ava-i" style="--s:${size}px" aria-hidden="true">${initials(p?.name)}</span>`;
 
 export function createTeam({ api, toast, getState, setState, onReward }) {
   let T = null, tab = 'week', busy = false;
@@ -35,6 +36,7 @@ export function createTeam({ api, toast, getState, setState, onReward }) {
     const next = T.leagues[lg + 1]; const floor = T.leagues[lg].xp; const pct = next ? (S.xp - floor) / (next.xp - floor) : 1;
     const list = rows();
     const inc = T.battles.filter((b) => b.status === 'open' && b.role === 'to' && b.my == null);
+    document.querySelectorAll('[data-go="team"] .dot-n').forEach((d) => { d.hidden = !inc.length; d.textContent = inc.length; });
     const wait = T.battles.filter((b) => b.status === 'open' && !(b.role === 'to' && b.my == null));
     const done = T.battles.filter((b) => b.status !== 'open').slice(0, 6);
     r.innerHTML = `
@@ -113,6 +115,8 @@ export function createTeam({ api, toast, getState, setState, onReward }) {
         <div><dt>Огонёк</dt><dd class="tn">${p.streak}</dd></div>
         <div><dt>Знаки</dt><dd class="tn">${p.badges}</dd></div>
       </dl>
+      ${(() => { const all = getState()?.badges || []; const got = (p.badgeIds || []).map((id) => all.find((x) => x.id === id)).filter(Boolean); return got.length ? `<h3 class="pf-h">Знаки отличия</h3><ul class="pf-bd">${got.map((x) => `<li class="${x.rare ? 'rare' : ''}" title="${esc(x.d)}"><img src="../assets/stickers/${x.st}.webp" alt="" width="56" height="56" loading="lazy"><span>${esc(x.t)}</span></li>`).join('')}</ul>` : ''; })()}
+      ${p.works?.length ? `<h3 class="pf-h">Лучшие работы</h3><ul class="pf-works">${p.works.map((w) => `<li><span class="pf-place">${w.place} место</span><b>${esc(w.title)}</b><p>${esc(w.text)}</p>${w.img ? `<img src="${esc(img(w.img))}" alt="Работа: ${esc(w.title)}" loading="lazy">` : ''}</li>`).join('')}</ul>` : ''}
       ${p.me ? '' : p.can ? `<button class="cta cta-sm" type="button" data-challenge="${p.pid}">${ico('vs')}Вызвать на баттл</button>` : `<p class="pf-lock">${ico('lock')}${esc(p.lock)}</p>`}
       <div class="sheet-a"><button class="btn btn-ghost" value="close">Закрыть</button></div></form>`;
     sh.showModal(); sfx.tick();

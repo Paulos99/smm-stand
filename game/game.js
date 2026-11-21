@@ -1,8 +1,10 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121t';
-import { api, store } from '../js/api.js?v=20261121t';
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121t';
-import { openBriefing } from './theory.js?v=20261121t';
-import { createTeam, badge, LEAGUES } from './team.js?v=20261121t';
+import { MECH, OPS, SHOP } from './data.js?v=20261121u';
+import { api, store } from '../js/api.js?v=20261121u';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121u';
+import { openBriefing } from './theory.js?v=20261121u';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261121u';
+import { createMissions, photoEditor } from './missions.js?v=20261121u';
+import { createTeacher } from './teacher.js?v=20261121u';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -191,6 +193,9 @@ function renderSide() {
     </section>
     <section class="panel" data-panel="agent" aria-labelledby="p-agent">
       <h2 id="p-agent">${badge(S.league ?? 0, 30, 'h-lg')}Агент ${esc(S.name)}</h2>
+      <div class="ag-photo"><button class="ag-ava" type="button" data-photo aria-label="${S.photo ? 'Сменить фото' : 'Загрузить фото'}">${avatar({ name: S.name, photo: S.photoHidden ? '' : S.photo }, 76)}<span class="ag-cam">${ico('cam')}</span></button>
+        <div><b>${S.photo ? (S.photoHidden ? 'Фото скрыто преподавателем' : 'Фото агента') : 'Добавьте фото'}</b><p class="fine">${S.photoHidden ? 'Его не видно команде. Можно загрузить другое.' : 'Его увидят в топе, баттлах и профиле. Только команда штаба.'}</p>
+        <div class="ag-pa"><button class="btn-ghost btn-s" type="button" data-photo>${S.photo ? 'Сменить' : 'Загрузить'}</button>${S.photo ? '<button class="btn-ghost btn-s" type="button" data-photo-rm>Убрать</button>' : ''}</div></div></div>
       <div class="rank-row"><span>${esc(S.rank)}</span>${S.nextXp ? `<span class="tn muted">${num(S.xp)} / ${num(S.nextXp)}</span><span>${esc(S.nextRank)}</span>` : '<span>Высшая лига</span>'}</div>
       <div class="bar bar-blue"><i style="--p:${Math.min(1, pct)}"></i></div>
       <p class="fine">${S.nextXp ? `До лиги «${esc(S.nextRank)}» ${num(S.nextXp - S.xp)} опыта. Лига считается по всему опыту, обмен в Лавке её не снижает. Баттлы: ${S.bt?.win || 0} ${plural(S.bt?.win || 0, 'победа', 'победы', 'побед')}, ${S.bt?.draw || 0} вничью.` : 'Вы на вершине штаба.'}</p>
@@ -206,7 +211,7 @@ function renderSide() {
       <ul class="ach">${S.badges.map((a) => `<li class="${a.on ? '' : 'off'}"><img src="../assets/stickers/${a.st}.webp" alt="" width="72" height="72" loading="lazy"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></li>`).join('')}</ul>
       ${S.bought?.length ? `<h3>Получено в Лавке</h3><ul class="bought">${S.bought.slice().reverse().map((b) => `<li><span>${esc(b.t)}</span><span class="tn muted">${new Date(b.at).toLocaleDateString('ru-RU')}</span></li>`).join('')}</ul>` : ''}
       <div class="agent-foot">
-        ${S.role === 'teacher' ? `<a class="btn-ghost btn-s" href="../#/dash">${ico('chart')}Статистика</a>` : ''}
+        ${S.role === 'teacher' ? `<button class="btn-ghost btn-s" type="button" data-go="teach">${ico('chart')}Кабинет</button><a class="btn-ghost btn-s" href="../#/dash">${ico('chart')}Статистика</a>` : ''}
         <button class="btn-ghost btn-s" type="button" data-logout>${ico('user')}Сменить имя</button>
       </div>
     </section>
@@ -321,6 +326,8 @@ function closeReward() { const b = $('#reward'); b.hidden = true; b.className = 
 function setView(v) {
   const was = $('.app').dataset.view; $('.app').dataset.view = v;
   if (v === 'team') { team.render(); window.scrollTo({ top: 0 }); }
+  if (v === 'teach') { teacher.render(); window.scrollTo({ top: 0 }); }
+  if (v === 'map' && was && was !== 'map') mis.card();
   if (was && was !== v) { sfx.tick(); const wide = matchMedia('(min-width: 1100px)').matches; if (!wide) replay(v === 'map' ? $('.view-map') : $(`[data-panel="${v}"]`), 'v-in'); }
   document.querySelectorAll('[data-go]').forEach((b) => { const on = b.dataset.go === v; b.classList.toggle('is-on', on); b.setAttribute('aria-current', on ? 'page' : 'false'); });
   if (matchMedia('(min-width: 1100px)').matches && v !== 'map') $(`[data-panel="${v}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -334,7 +341,16 @@ function setTheme(t) {
 }
 // ---------- team + in-app notifications ----------
 const team = createTeam({ api, toast, getState: () => S, setState: (st) => { if (st) { S = { ...st, battles: S?.battles }; renderAll(); } } });
+const mis = createMissions({ api, toast, getState: () => S });
+const teacher = createTeacher({ api, toast });
+function missionWin(w) { // celebration for a mission winner, shown once (the server hands wins out once)
+  const sh = $('#sheet');
+  sh.innerHTML = `<form method="dialog" class="sheet-in mw"><img class="mw-st pop" src="../assets/stickers/mission-best.webp" alt="" width="180" height="195"><p class="sheet-k">Миссия недели</p><h2 id="sheet-t">${w.place} место: «${esc(w.title)}»</h2><p>Преподаватель выбрал вашу работу. Редкий знак «Лучшая работа недели» уже в профиле.</p><p class="mw-xp tn">+${w.xp} опыта</p><div class="sheet-a"><button class="cta cta-sm" value="close">Отлично</button></div></form>`;
+  sh.showModal(); chime([523.25, 659.25, 783.99, 1046.5], 0.09, 0.1); setTimeout(() => sfx.badge(), 500);
+}
 function notify() {
+  if (S?.missionWins?.length) { const w = S.missionWins; S.missionWins = []; setTimeout(() => missionWin(w[0]), 700); }
+  document.querySelector('.app').classList.toggle('is-teacher', S?.role === 'teacher');
   const bt = S?.battles; if (!bt) return;
   const n = bt.incoming.length; document.querySelectorAll('[data-go="team"] .dot-n').forEach((d) => { d.hidden = !n; d.textContent = n; });
   const seen = new Set(JSON.parse(localStorage.getItem('game-bt-seen') || '[]')); const msgs = [];
@@ -387,13 +403,17 @@ async function boot() {
   if (!store.token) return entry();
   $('.app').hidden = false; $('#entry').hidden = true;
   if (!S) $('#ops').innerHTML = '<li class="loading">Связываемся со штабом…</li>';
-  try { S = await api('/api/game/state?tz=' + encodeURIComponent(TZ), { timeout: 30000 }); renderAll(); notify(); }
+  try { S = await api('/api/game/state?tz=' + encodeURIComponent(TZ), { timeout: 30000 }); renderAll(); notify(); mis.card(); }
   catch (e) { if (!store.token) return entry('Сессия закончилась, войдите снова'); $('#ops').innerHTML = `<li class="loading">${esc(e.message)} <button class="btn btn-ghost btn-s" type="button" data-retry>Повторить</button></li>`; }
 }
 
 document.addEventListener('click', (e) => {
   const b = e.target.closest('button, a'); if (!b) return;
   if (team.onClick(b)) return;
+  if ('mission' in b.dataset) return mis.open();
+  if ('photo' in b.dataset) return photoEditor({ api, toast, onDone: (ph) => { S.photo = ph; S.photoHidden = false; renderSide(); } });
+  if ('photoRm' in b.dataset) { if (!confirm('Убрать фото?')) return; return api('/api/game/photo', { method: 'POST', body: { remove: true } }).then(() => { S.photo = ''; renderSide(); toast('Фото убрано'); }).catch((er) => toast(er.message)); }
+  if (b.closest('#view-teach')) { teacher.onClick(b); if (!b.dataset.go) return; }
   if (b.dataset.play) { closeReward(); return play(b.dataset.play); }
   if (b.dataset.brief) { closeReward(); return briefing(+b.dataset.brief); }
   if (b.dataset.step) return openSheet(b.dataset.step);
