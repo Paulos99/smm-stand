@@ -164,3 +164,6 @@ details summary{list-style:revert}
 .cmp .barrow{grid-template-columns:78px 1fr 70px}
 @media(max-width:600px){.lab-badge{display:none}.brand small{display:none}.brand img{width:34px;height:34px}.header-actions{gap:6px}.pill-btn{padding:7px 10px;font-size:12px}.icon-btn{width:36px;height:36px}.header-inner{gap:8px}}
 html,body{overflow-x:clip}
+.role-seg{display:flex;width:100%}.role-seg button{flex:1}
+.pill-btn.role{white-space:nowrap}
+@media(max-width:420px){.pill-btn.role{padding:7px 9px}}
