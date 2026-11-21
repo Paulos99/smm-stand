@@ -1,6 +1,6 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121k';
-import { api, store } from '../js/api.js?v=20261121k';
-import { playStep, chime } from './play.js?v=20261121k';
+import { MECH, OPS, SHOP } from './data.js?v=20261121l';
+import { api, store } from '../js/api.js?v=20261121l';
+import { playStep, chime } from './play.js?v=20261121l';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -12,7 +12,7 @@ const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZon
 const CONTENT = {};
 let S = null; // server state
 
-async function content(op) { if (!CONTENT[op]) CONTENT[op] = (await import(`./content/op${op}.js?v=20261121k`)).default; return CONTENT[op]; }
+async function content(op) { if (!CONTENT[op]) CONTENT[op] = (await import(`./content/op${op}.js?v=20261121l`)).default; return CONTENT[op]; }
 const starsOf = (op) => S?.stars?.[op] || Array(10).fill(null);
 const opState = (n) => (S.open.includes(n) ? (n < Math.max(...S.open) ? 'done' : 'current') : 'locked');
 const curOp = () => Math.max(...S.open);

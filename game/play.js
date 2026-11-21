@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors } from './content/grade.js?v=20261121k';
-import { MECH } from './data.js?v=20261121k';
+import { itemErrors } from './content/grade.js?v=20261121l';
+import { MECH } from './data.js?v=20261121l';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -137,7 +137,7 @@ R.swipe = (it, c) => new Promise(done => {
   async function pick(v) {
     if (picked) return; picked = true; no.disabled = yes.disabled = true;
     const ok = v === it.truth; card.dataset.dir = v ? 'yes' : 'no';
-    card.style.transform = `translateX(${v ? 120 : -120}%) rotate(${v ? 14 : -14}deg)`; card.style.opacity = '0';
+    card.style.transform = `translateX(${v ? 18 : -18}px) rotate(${v ? 3 : -3}deg)`; card.classList.add('done', ok ? 'is-ok' : 'is-bad');
     await c.feedback(ok, ok ? (it.truth ? 'Верно, это правда' : 'Верно, это дезинформация') : (it.truth ? 'Это как раз правда' : 'Это дезинформация'), it.why);
     c.answer(v); done();
   }
@@ -145,22 +145,77 @@ R.swipe = (it, c) => new Promise(done => {
 
 R.vs = (it, c) => new Promise(done => {
   const order = shuffle(it.options.length); let over = false;
-  const tbar = el('i'); const timer = el('div', { class: 'timer', 'aria-hidden': 'true' }, tbar);
-  const left = el('span', { class: 'timer-n tn', 'aria-live': 'off' }, String(it.timer || 20));
   const cards = order.map((i, k) => [k ? el('span', { class: 'vs', 'aria-hidden': 'true' }, 'VS') : null,
     el('button', { class: 'vs-card', type: 'button', 'data-i': i, onclick: e => pick(i, e.currentTarget) }, el('span', { class: 'vs-l' }, 'ABC'[k]), el('span', {}, it.options[i].t))]).flat().filter(Boolean);
   const box = el('div', { class: 'vs-box' }, cards);
-  c.body.append(el('div', { class: 'timer-row' }, timer, left), el('h2', { class: 'q' }, it.q), box);
-  const T = (it.timer || 20) * 1000, t0 = performance.now();
-  requestAnimationFrame(() => { tbar.style.transition = `transform ${T}ms linear`; tbar.style.transform = 'scaleX(0)'; });
-  const iv = setInterval(() => { const s = Math.max(0, Math.ceil((T - (performance.now() - t0)) / 1000)); left.textContent = s; if (s <= 5) timer.classList.add('low'); if (s <= 0) pick(-1); }, 250);
+  c.body.append(el('h2', { class: 'q' }, it.q), el('p', { class: 'hint' }, 'Подумайте спокойно, время не ограничено.'), box);
   async function pick(i, b) {
-    if (over) return; over = true; clearInterval(iv); tbar.style.transition = 'none'; lockAll(box);
+    if (over) return; over = true; lockAll(box);
     const ok = i === it.correct; if (b) b.classList.add(ok ? 'ok' : 'bad'); box.querySelector(`[data-i="${it.correct}"]`).classList.add('ok');
     const why = el('ul', { class: 'why-list' }, order.map((j, k) => el('li', { class: j === it.correct ? 'w-ok' : 'w-bad' }, el('b', {}, 'ABC'[k] + '. '), it.options[j].why)));
-    await c.feedback(ok, i === -1 ? 'Время вышло' : ok ? 'Сильный выбор!' : 'Не этот вариант', null, why); c.answer(i); done();
+    await c.feedback(ok, ok ? 'Сильный выбор!' : 'Не этот вариант', null, why); c.answer(i); done();
   }
 });
+
+// ---- drag & drop for assembly steps (pointer events: mouse + touch), tap and keyboard stay as fallback ----
+function dnd({ root, chips, targets, fill, label, draw, locked }) {
+  let drag = null, lastDrop = 0;
+  root.addEventListener('click', ev => { if (performance.now() - lastDrop < 350) { ev.stopImmediatePropagation(); ev.preventDefault(); } }, true);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const hit = (x, y) => { const e = document.elementFromPoint(x, y); if (!e) return null; const t = e.closest('[data-drop]'); if (t && root.contains(t)) return t; return e.closest('.pool') && root.contains(e.closest('.pool')) ? 'pool' : null; };
+  const start = (e, src) => {
+    if (locked() || e.button > 0) return;
+    const val = src.kind === 'chip' ? src.i : fill[src.k]; if (val == null) return;
+    drag = { src, val, x0: e.clientX, y0: e.clientY, on: false, el: e.currentTarget, id: e.pointerId, over: null };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const move = e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+    if (!drag.on) {
+      if (Math.hypot(dx, dy) < 6) return;
+      drag.on = true; const r = drag.el.getBoundingClientRect();
+      const g = el('div', { class: 'dnd-ghost', 'aria-hidden': 'true' }, label(drag.val)); g.style.width = Math.min(r.width, 320) + 'px';
+      document.body.append(g); drag.g = g; drag.ox = e.clientX - r.left; drag.oy = e.clientY - r.top;
+      drag.el.classList.add('dnd-src'); document.body.classList.add('dnd-on');
+    }
+    e.preventDefault();
+    drag.g.style.transform = `translate(${e.clientX - drag.ox}px,${e.clientY - drag.oy}px) rotate(-2deg) scale(1.04)`;
+    const t = hit(e.clientX, e.clientY);
+    if (t !== drag.over) { if (drag.over && drag.over !== 'pool') drag.over.classList.remove('over'); root.querySelector('.pool')?.classList.toggle('over', t === 'pool' && drag.src.kind === 'slot'); if (t && t !== 'pool') t.classList.add('over'); drag.over = t; }
+  };
+  const end = e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag; drag = null; d.el.classList.remove('dnd-src'); document.body.classList.remove('dnd-on');
+    root.querySelectorAll('.over').forEach(x => x.classList.remove('over'));
+    if (!d.on) return; // plain tap: the click handler does the tap-to-place
+    lastDrop = performance.now(); // swallow the click that follows a drag
+    const t = e.type === 'pointercancel' ? null : hit(e.clientX, e.clientY);
+    let to = null;
+    if (t && t !== 'pool') {
+      const k = +t.dataset.k;
+      if (d.src.kind === 'chip') { const j = fill.indexOf(d.val); if (j >= 0) fill[j] = null; fill[k] = d.val; }
+      else { const j = d.src.k; [fill[j], fill[k]] = [fill[k], fill[j]]; }
+      to = t;
+    } else if (d.src.kind === 'slot') fill[d.src.k] = null;
+    const g = d.g;
+    if (to && !reduce) {
+      const r = to.getBoundingClientRect(), gr = g.getBoundingClientRect();
+      g.style.transition = 'transform .18s cubic-bezier(.3,1.3,.5,1), opacity .18s';
+      g.style.transform = `translate(${r.left + 8}px,${r.top + (r.height - gr.height) / 2}px) scale(.92)`; g.style.opacity = '.0';
+      setTimeout(() => g.remove(), 190);
+    } else g.remove();
+    draw();
+    if (to) { to.classList.remove('snap'); void to.offsetWidth; to.classList.add('snap'); }
+  };
+  const wire = (node, src) => { node.addEventListener('pointerdown', e => start(e, src)); node.addEventListener('pointermove', move); node.addEventListener('pointerup', end); node.addEventListener('pointercancel', end); node.addEventListener('dragstart', e => e.preventDefault()); };
+  chips.forEach(ch => wire(ch, { kind: 'chip', i: +ch.dataset.i }));
+  targets.forEach((t, k) => { t.dataset.drop = '1'; t.dataset.k = k; wire(t, { kind: 'slot', k });
+    t.addEventListener('keydown', e => { // keyboard: arrows move a placed block to the neighbouring slot (swap)
+      if (locked() || fill[k] == null) return; const dir = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]; if (!dir) return;
+      const j = k + dir; if (j < 0 || j >= targets.length) return; e.preventDefault(); [fill[j], fill[k]] = [fill[k], fill[j]]; draw(); targets[j].focus(); targets[j].classList.add('snap'); });
+  });
+}
 
 R.blocks = (it, c) => new Promise(done => {
   const order = shuffle(it.blocks.length); const fill = Array(it.slots.length).fill(null);
@@ -168,10 +223,11 @@ R.blocks = (it, c) => new Promise(done => {
   const chips = order.map(i => el('button', { class: 'chip-b', type: 'button', 'data-i': i, onclick: () => { if (checked) return; const k = fill.indexOf(null); if (k < 0) return; fill[k] = i; draw(); } }, it.blocks[i]));
   const check = el('button', { class: 'cta cta-sm', type: 'button', disabled: true, onclick: () => go() }, 'Проверить');
   let checked = false;
-  c.body.append(el('h2', { class: 'q' }, it.q), el('div', { class: 'slots' + (it.slots.length > 4 ? ' slots-chain' : '') }, slots), el('div', { class: 'pool' }, chips));
+  c.body.append(el('h2', { class: 'q' }, it.q), el('p', { class: 'hint' }, 'Перетащите блоки в ячейки или нажимайте на них по очереди.'), el('div', { class: 'slots' + (it.slots.length > 4 ? ' slots-chain' : '') }, slots), el('div', { class: 'pool' }, chips));
   c.foot.replaceChildren(check);
+  dnd({ root: c.body, chips, targets: slots, fill, label: i => it.blocks[i], draw: () => draw(), locked: () => checked });
   function draw() {
-    slots.forEach((s, k) => { s.querySelector('.slot-v').textContent = fill[k] == null ? '' : it.blocks[fill[k]]; s.classList.toggle('filled', fill[k] != null); s.setAttribute('aria-label', `${it.slots[k]}: ${fill[k] == null ? 'пусто' : it.blocks[fill[k]] + ', нажмите, чтобы убрать'}`); });
+    slots.forEach((s, k) => { s.querySelector('.slot-v').textContent = fill[k] == null ? '' : it.blocks[fill[k]]; s.classList.toggle('filled', fill[k] != null); s.setAttribute('aria-label', `${it.slots[k]}: ${fill[k] == null ? 'пусто' : it.blocks[fill[k]] + '. Нажмите, чтобы убрать, стрелки меняют местами'}`); });
     chips.forEach(ch => { const used = fill.includes(+ch.dataset.i); ch.classList.toggle('used', used); ch.disabled = used; });
     check.disabled = fill.includes(null);
   }
@@ -191,6 +247,7 @@ R.cloze = (it, c) => new Promise(done => {
   const chips = order.map(i => el('button', { class: 'chip-b', type: 'button', 'data-i': i, onclick: () => { if (checked) return; const k = fill.indexOf(null); if (k < 0) return; fill[k] = i; draw(); } }, it.chips[i]));
   const check = el('button', { class: 'cta cta-sm', type: 'button', disabled: true, onclick: () => go() }, 'Проверить');
   c.body.append(el('h2', { class: 'q' }, it.q), line, el('div', { class: 'pool' }, chips)); c.foot.replaceChildren(check);
+  dnd({ root: c.body, chips, targets: gapEls, fill, label: i => it.chips[i], draw: () => draw(), locked: () => checked });
   function draw() {
     gapEls.forEach((g, k) => { g.textContent = fill[k] == null ? '…' : it.chips[fill[k]]; g.classList.toggle('filled', fill[k] != null); });
     chips.forEach(ch => { const used = fill.includes(+ch.dataset.i); ch.classList.toggle('used', used); ch.disabled = used; });

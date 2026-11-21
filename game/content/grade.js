@@ -1,5 +1,5 @@
 // Shared grading for the game: used by the browser (instant feedback) and by the API (server-authoritative stars and XP).
-// Answer per item: quiz/vs/chat -> option index (-1 = timeout); swipe -> true/false; blocks -> array of block indices per slot;
+// Answer per item: quiz/vs/chat -> option index; swipe -> true/false; blocks -> array of block indices per slot;
 // pairs -> array of chosen right indices per left row; cloze -> array of chip indices per gap; clue -> array of tapped spot ids ('x' = miss); story -> null.
 export function itemErrors(it, a) {
   switch (it.type) {
