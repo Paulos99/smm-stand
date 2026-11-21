@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors } from './content/grade.js?v=20261121i';
-import { MECH } from './data.js?v=20261121i';
+import { itemErrors } from './content/grade.js?v=20261121j';
+import { MECH } from './data.js?v=20261121j';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -241,7 +241,7 @@ R.story = (it, c) => new Promise(done => {
   const prev = el('button', { class: 'tapzone tz-prev', type: 'button', 'aria-label': 'Назад', onclick: () => { if (k > 0) { k--; draw(); } } });
   const nextB = el('button', { class: 'tapzone tz-next', type: 'button', 'aria-label': 'Дальше', onclick: () => { if (k < flat.length - 1) { k++; draw(); } else end(); } });
   const frame = el('div', { class: 'story-frame' }, segs, stage, prev, nextB);
-  c.body.append(el('div', { class: 'hls', role: 'tablist', 'aria-label': 'Актуальное' }, rings), frame);
+  c.body.append(el('div', { class: 'hls', role: 'tablist', 'aria-label': 'Актуальное' }, rings), el('div', { class: 'story-wrap' }, frame));
   const go = el('button', { class: 'cta cta-sm', type: 'button', onclick: () => end() }, 'К вопросам');
   c.foot.replaceChildren(el('p', { class: 'hint' }, 'Нажимайте справа, чтобы листать'), go);
   const onKey = e => { if (!document.body.contains(frame)) return document.removeEventListener('keydown', onKey); if (e.key === 'ArrowRight') nextB.click(); if (e.key === 'ArrowLeft') prev.click(); };
