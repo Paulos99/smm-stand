@@ -31,10 +31,11 @@ export const OPS = [
     S('dossier', 'Чек-лист оформления ВК'), S('clue', 'Текст вне безопасной зоны'), S('sort', 'Палитры по настроению'), S('chat', 'Клиент просит «поярче»'),
     S('field', 'Опиши визуальный стиль проекта'), S('boss', 'Финальный кейс операции')] },
 ];
-// Agent progress (demo): stars per step, null = locked
+// Agent progress: fresh start (reset by Pavel's request 2026-11-21)
 export const STATE = {
-  name: 'Паша', rank: 'Оперативник', nextRank: 'Агент', xp: 1240, nextXp: 1500, streak: 4, freeze: 1, current: { op: 2, step: 5 },
-  stars: { 1: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3], 2: [3, 3, 2, 3, 0, null, null, null, null, null] },
+  name: 'Паша', rank: 'Стажёр', nextRank: 'Оперативник', xp: 0, nextXp: 500, streak: 0, freeze: 0, current: { op: 1, step: 1 },
+  stars: { 1: [null, null, null, null, null, null, null, null, null, null] },
+  week: ['', '', '', '', '', 'today', ''], badges: [],
 };
 export const SHOP = [
   { t: 'Заморозка огонька на день', p: 200 },

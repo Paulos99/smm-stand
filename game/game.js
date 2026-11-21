@@ -1,4 +1,4 @@
-import { MECH, OPS, STATE, SHOP } from './data.js';
+import { MECH, OPS, STATE, SHOP } from './data.js?v=20261121g';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -24,7 +24,7 @@ function renderHud() {
   $('#hud').innerHTML = `
     <span class="chip chip-rank" title="Звание">${ico('rank')}<span>${STATE.rank}</span></span>
     <span class="chip chip-streak" title="Огонёк: дней подряд">${ico('flame')}<b class="tn">${STATE.streak}</b>
-      <span class="freeze" title="Заморозка в запасе">${ico('snow')}<b class="tn">${STATE.freeze}</b></span></span>
+      ${STATE.freeze ? `<span class="freeze" title="Заморозка в запасе">${ico('snow')}<b class="tn">${STATE.freeze}</b></span>` : ''}</span>
     <span class="chip chip-xp" title="Опыт">${ico('bolt')}<b class="tn">${num(STATE.xp)}</b></span>`;
 }
 
@@ -112,11 +112,11 @@ function drawLinks() {
 
 function renderSide() {
   const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-  const week = ['ok', 'ok', 'freeze', 'ok', 'ok', 'today', ''];
+  const week = STATE.week;
   const pct = STATE.xp / STATE.nextXp;
   const ach = [
-    { t: 'Первое задание', s: 'accepted', on: true },
-    { t: 'Полный допуск: операция 1', s: 'news-progress', on: true },
+    { t: 'Первое задание', s: 'accepted', on: STATE.badges.includes('first') },
+    { t: 'Полный допуск: операция 1', s: 'news-progress', on: STATE.badges.includes('op1') },
     { t: 'Точно в ЦА: карта сегмента без ошибок', s: 'target', on: false },
     { t: 'Только нужное: пост 10 из 10 после правок', s: 'news-puzzle', on: false },
   ];
