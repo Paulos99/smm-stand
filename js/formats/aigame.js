@@ -1,6 +1,6 @@
 import { h } from '../ui.js';
 import { ask, nextBtn, finale } from './_quiz.js';
-import { parseGame } from './_game-parse.js';
+import { parseGame } from './_game-parse.js?v=20261121e';
 // Teacher tool: AI turns a lecture into a game. A: quiz with 3 options. B: true or myth.
 export default function (stage, ctx) {
   const v = ctx.variant, lectures = ctx.content.lectures || [];
