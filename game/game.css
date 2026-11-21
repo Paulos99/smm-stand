@@ -1137,3 +1137,4 @@ html:has(#play:not([hidden])),body:has(#play:not([hidden])){overflow:hidden}
 .tc-row .cta{min-width:0;width:auto;display:inline-flex;align-items:center;gap:8px;padding-inline:18px}
 .tc-subs li{align-self:start}
 .tc-sub{align-content:start}
+.tc-row .cta{flex-direction:row;min-height:44px;padding:10px 18px}

@@ -1,10 +1,10 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121u';
-import { api, store } from '../js/api.js?v=20261121u';
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121u';
-import { openBriefing } from './theory.js?v=20261121u';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261121u';
-import { createMissions, photoEditor } from './missions.js?v=20261121u';
-import { createTeacher } from './teacher.js?v=20261121u';
+import { MECH, OPS, SHOP } from './data.js?v=20261121v';
+import { api, store } from '../js/api.js?v=20261121v';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121v';
+import { openBriefing } from './theory.js?v=20261121v';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261121v';
+import { createMissions, photoEditor } from './missions.js?v=20261121v';
+import { createTeacher } from './teacher.js?v=20261121v';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;

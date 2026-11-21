@@ -1,7 +1,7 @@
 // Teacher cabinet: students progress, hardest steps, missions editor + judging, photo moderation.
-import { sfx, chime, stagger, replay } from './play.js?v=20261121u';
-import { img, left } from './missions.js?v=20261121u';
-import { badge, avatar } from './team.js?v=20261121u';
+import { sfx, chime, stagger, replay } from './play.js?v=20261121v';
+import { img, left } from './missions.js?v=20261121v';
+import { badge, avatar } from './team.js?v=20261121v';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -32,7 +32,7 @@ export function createTeacher({ api, toast }) {
         <div class="tc-num"><span class="muted">Средняя</span><b class="tn ${x.avg && x.avg < 2.3 ? 'warn' : ''}">${x.avg || '—'}</b></div>
         <div class="tc-num"><span class="muted">Заходил</span><b>${ago(x.last)}</b></div></li>`).join('') || '<li class="muted">Пока никто не играл</li>'}</ul></section>
       <section class="tc-card"><h2>Самые трудные шаги</h2><p class="muted">Средняя оценка всех попыток. Сюда стоит вернуться на занятии.</p>
-      <ol class="tc-hard">${D.hard.map((h) => `<li><span class="tc-id tn">${h.op}.${h.n}</span><div><b>${esc(h.title)}</b><span class="muted">${MECH[h.m] || h.m} · ${h.tried} ${h.tried === 1 ? 'попытка' : 'попыток'}, ниже трёх звёзд: ${h.below}</span></div><span class="tc-bar" style="--p:${h.avg / 3}"><i></i><b class="tn">${h.avg}</b></span></li>`).join('') || '<li class="muted">Данных пока мало</li>'}</ol></section>`;
+      <ol class="tc-hard">${D.hard.filter((h) => h.below).map((h) => `<li><span class="tc-id tn">${h.op}.${h.n}</span><div><b>${esc(h.title)}</b><span class="muted">${MECH[h.m] || h.m} · ${h.tried} ${h.tried === 1 ? 'попытка' : 'попыток'}, ниже трёх звёзд: ${h.below}</span></div><span class="tc-bar" style="--p:${h.avg / 3}"><i></i><b class="tn">${h.avg}</b></span></li>`).join('') || (D.hard.length ? '<li class="muted">Пока все попытки на три звезды. Трудных шагов нет.</li>' : '<li class="muted">Данных пока мало</li>')}</ol></section>`;
   }
   function missions() {
     if (edit) return editor();

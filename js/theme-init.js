@@ -1,1 +1,1 @@
-(function(){try{var s=localStorage.getItem('stand-theme');document.documentElement.dataset.theme=s||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');}catch(e){document.documentElement.dataset.theme='dark';}window.STAND_V='20261121u';})();
+(function(){try{var s=localStorage.getItem('stand-theme');document.documentElement.dataset.theme=s||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');}catch(e){document.documentElement.dataset.theme='dark';}window.STAND_V='20261121v';})();
