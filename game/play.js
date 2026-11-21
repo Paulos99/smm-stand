@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors, clozeMarks } from './content/grade.js?v=20261121r';
-import { MECH } from './data.js?v=20261121r';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261121s';
+import { MECH } from './data.js?v=20261121s';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -79,7 +79,7 @@ const vibrate = ok => { try { if (!ok && navigator.vibrate) navigator.vibrate(30
 export function playStep({ op, n, step, api, onDone, onClose, toast }) {
   const root = document.getElementById('play');
   const items = step.items; const answers = Array(items.length).fill(null);
-  const UNGRADED = ['story', 'brief', 'field', 'storm']; const graded = items.filter(it => !UNGRADED.includes(it.type)).length || 1;
+  const UNGRADED = ['brief', 'field', 'storm']; const graded = items.filter(it => !UNGRADED.includes(it.type)).length || 1;
   let idx = 0, doneCount = 0, closed = false;
   const bar = el('i'); const prog = el('div', { class: 'pbar', role: 'progressbar', 'aria-label': 'Прогресс шага', 'aria-valuemin': 0, 'aria-valuemax': graded }, bar);
   const sndBtn = el('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Звук', 'aria-pressed': String(sound.on), onclick: () => { sound.on = !sound.on; sndBtn.setAttribute('aria-pressed', String(sound.on)); sndBtn.classList.toggle('off', !sound.on); } }, ico('sound'));
@@ -347,45 +347,6 @@ R.clue = (it, c) => new Promise(done => {
       c.answer(taps); done();
     }
   }
-});
-
-R.story = (it, c) => new Promise(done => {
-  const flat = []; it.groups.forEach((g, gi) => g.slides.forEach((s, si) => flat.push({ ...s, gi, si })));
-  let k = 0; const seen = new Set();
-  const rings = it.groups.map((g, gi) => el('button', { class: 'hl', type: 'button', onclick: () => { k = flat.findIndex(s => s.gi === gi); draw(); } }, el('span', { class: 'hl-c' }, ico(['user', 'pairs', 'target', 'swipe'][gi % 4])), el('span', { class: 'hl-t' }, g.name)));
-  const segs = el('div', { class: 'segs', 'aria-hidden': 'true' });
-  const stage = el('div', { class: 'story', 'aria-live': 'polite' });
-  const prev = el('button', { class: 'tapzone tz-prev', type: 'button', 'aria-label': 'Назад', onclick: () => { if (k > 0) { k--; draw(); } } });
-  const nextB = el('button', { class: 'tapzone tz-next', type: 'button', 'aria-label': 'Дальше', onclick: () => { if (k < flat.length - 1) { k++; draw(); } else end(); } });
-  const frame = el('div', { class: 'story-frame' }, segs, stage, prev, nextB);
-  c.body.append(el('div', { class: 'hls', role: 'tablist', 'aria-label': 'Актуальное' }, rings), el('div', { class: 'story-wrap' }, frame));
-  const go = el('button', { class: 'cta cta-sm', type: 'button', onclick: () => end() }, 'К вопросам');
-  c.foot.replaceChildren(el('p', { class: 'hint' }, 'Нажимайте справа, чтобы листать'), go);
-  const onKey = e => { if (!document.body.contains(frame)) return document.removeEventListener('keydown', onKey); if (e.key === 'ArrowRight') nextB.click(); if (e.key === 'ArrowLeft') prev.click(); };
-  document.addEventListener('keydown', onKey);
-  function slideEl(s) {
-    const t = el('h3', { class: 'st-t' }, s.title);
-    switch (s.lay) {
-      case 'cover': return el('div', { class: 'sl sl-cover' }, s.st ? el('img', { src: `../assets/stickers/${s.st}.webp`, alt: '', class: 'sl-st' }) : null, t, el('p', {}, s.text));
-      case 'list': return el('div', { class: 'sl sl-list' }, t, el('ol', {}, s.list.map(x => el('li', {}, x))), s.text ? el('p', { class: 'sl-foot' }, s.text) : null);
-      case 'compare': return el('div', { class: 'sl sl-compare' }, t, el('div', { class: 'cmp2' }, el('div', { class: 'c-a' }, s.a.join(' ')), el('span', { class: 'vs', 'aria-hidden': 'true' }, 'VS'), el('div', { class: 'c-b' }, s.b.join(' '))), el('p', { class: 'sl-foot' }, s.text));
-      case 'two': return el('div', { class: 'sl sl-two' }, t, el('div', { class: 'two' }, [s.a, s.b].map(([h, d]) => el('div', {}, el('b', {}, h), el('span', {}, d)))), el('p', { class: 'sl-foot' }, s.text));
-      case 'chain': return el('div', { class: 'sl sl-chain' }, t, el('div', { class: 'chain' }, s.chain.map((x, i) => [i ? el('span', { class: 'arr', 'aria-hidden': 'true' }, ico('chev')) : null, el('span', { class: 'link' }, x)]).flat().filter(Boolean)), el('p', { class: 'sl-foot' }, s.text));
-      case 'steps': return el('div', { class: 'sl sl-steps' }, t, el('ol', { class: 'stairs' }, s.chain.map((x, i) => el('li', { style: `--i:${i}` }, x))), el('p', { class: 'sl-foot' }, s.text));
-      case 'big': return el('div', { class: 'sl sl-big' }, t, s.big.map(([b, d], i) => el('div', { class: 'big ' + (i ? 'big-b' : 'big-a') }, el('b', {}, b), el('span', {}, d))));
-      case 'pic': return el('div', { class: 'sl sl-pic' }, el('img', { src: `../assets/stickers/${s.st}.webp`, alt: '', class: 'sl-pic-img' }), t, el('p', {}, s.text));
-      default: return el('div', { class: 'sl' }, t, el('p', {}, s.text || ''));
-    }
-  }
-  function draw() {
-    const s = flat[k]; seen.add(k);
-    segs.replaceChildren(...flat.filter(x => x.gi === s.gi).map(x => el('i', { class: x.si < s.si ? 'on' : x.si === s.si ? 'cur' : '' })));
-    rings.forEach((r, gi) => { r.classList.toggle('cur', gi === s.gi); r.classList.toggle('seen', flat.every((x, j) => x.gi !== gi || seen.has(j))); r.setAttribute('aria-selected', String(gi === s.gi)); });
-    const n = slideEl(s); n.classList.add('enter'); stage.replaceChildren(n); requestAnimationFrame(() => n.classList.remove('enter'));
-    go.textContent = k === flat.length - 1 ? 'К вопросам' : 'Пропустить к вопросам';
-  }
-  draw();
-  function end() { document.removeEventListener('keydown', onKey); c.answer(null); done(); }
 });
 
 R.chat = (it, c) => new Promise(async done => {

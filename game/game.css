@@ -388,14 +388,9 @@ body.playing{overflow:hidden}
 .hl .ic{width:24px;height:24px}
 .hl-t{font-size:12px;font-weight:600;color:var(--muted)}
 .hl.cur .hl-t{color:var(--text)}
-.play-b.play-story{display:flex;flex-direction:column;overflow:hidden;padding-bottom:8px}
-.play-story .hls{flex:none;justify-content:center}
-.story-wrap{flex:1 1 auto;min-height:0;width:100%;display:grid;place-items:center;container-type:size}
-.story-frame{position:relative;width:min(100cqw,100cqh * 9 / 16);height:min(100cqh,100cqw * 16 / 9);border-radius:clamp(14px,3cqh,24px);overflow:hidden;background:#191919;color:#f8f7f3;container-type:size}
 .segs{position:absolute;top:10px;left:12px;right:12px;display:flex;gap:4px;z-index:3}
 .segs i{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.3)}
 .segs i.on,.segs i.cur{background:#fff}
-.story{position:absolute;inset:0}
 .sl{position:absolute;inset:0;padding:40px 22px 24px;display:flex;flex-direction:column;gap:14px;transition:opacity .25s,transform .3s var(--spring)}
 .sl.enter{opacity:0;transform:translateX(16px)}
 .st-t{font-size:23px;line-height:1.2;color:#fff}
@@ -440,7 +435,6 @@ body.playing{overflow:hidden}
 .tapzone{position:absolute;top:0;bottom:0;z-index:2;width:35%}
 .tz-prev{left:0}.tz-next{right:0;width:65%}
 .tapzone:focus-visible{outline-offset:-4px}
-.play-story~.play-f{justify-content:space-between}
 
 /* chat */
 .chat-top{display:flex;gap:10px;align-items:center;padding:6px 0 12px;border-bottom:1px solid var(--line);margin-bottom:12px}
@@ -565,37 +559,13 @@ body.playing{overflow:hidden}
 }
 @media (prefers-reduced-motion:reduce){.swipe-card,.sl,.bub,.fb{transition:none!important}}
 
-/* story content scales with the 9:16 frame */
-.story-frame .sl{padding:7cqh 6cqw 4.5cqh;gap:2.4cqh}
-.story-frame .st-t{font-size:clamp(15px,4.4cqh,34px)}
-.story-frame .sl-cover .st-t{font-size:clamp(18px,5.4cqh,40px)}
-.story-frame .sl p,.story-frame .sl li,.story-frame .chain .link,.story-frame .two span,.story-frame .big span{font-size:clamp(11px,2.75cqh,19px)}
-.story-frame .sl-foot{font-size:clamp(10.5px,2.45cqh,17px)!important}
-.story-frame .sl-list li{padding:1.8cqh 3.5cqw;gap:3cqw}
-.story-frame .sl-list li::before{width:clamp(20px,4.6cqh,34px);height:clamp(20px,4.6cqh,34px)}
-.story-frame .cmp2 .c-a,.story-frame .cmp2 .c-b,.story-frame .two b{font-size:clamp(13px,3.2cqh,24px)}
-.story-frame .cmp2 .c-a,.story-frame .cmp2 .c-b{padding:3cqh 4cqw}
-.story-frame .big b{font-size:clamp(22px,6.4cqh,48px)}
-.story-frame .big{padding:3cqh 5cqw}
-.story-frame .stairs li{padding:1.6cqh 3.5cqw;margin-left:calc(var(--i) * 3.2cqw)}
-.story-frame .sl-st{width:30cqw;top:7cqh;right:4cqw}
-.story-frame .sl-pic-img{width:62cqw}
-.story-frame .segs{top:2cqh}
-.play-story~.play-f{flex:none}
 html:has(#play:not([hidden])),body:has(#play:not([hidden])){overflow:hidden}
 @media (max-height:760px){
-  .play-story .hls{gap:10px;padding:2px 2px 8px}
-  .play-story .hl{width:56px;gap:4px}
-  .play-story .hl-c{width:42px;height:42px}
-  .play-story .hl .ic{width:20px;height:20px}
-  .play-story .hl-t{font-size:11px}
 }
 
 /* one scroll only: the mission overlay itself; header and answer sheet stick */
 .play-h{position:sticky;top:0;z-index:3;background:var(--bg);max-width:none;padding-left:max(14px,calc(50% - 366px));padding-right:max(14px,calc(50% - 366px))}
 .play-f{position:sticky;bottom:0;z-index:3;background:linear-gradient(to top,var(--bg) 82%,transparent);max-width:none;padding-left:max(16px,calc(50% - 364px));padding-right:max(16px,calc(50% - 364px))}
-.play:has(.play-b.play-story){overflow:hidden}
-.play-b.play-story{flex:1 1 0;min-height:0}
 @media (min-width:1100px){
   .play-b{max-width:880px}
   .play-h,.play-f{padding-left:max(16px,calc(50% - 424px));padding-right:max(16px,calc(50% - 424px))}
@@ -837,7 +807,7 @@ html:has(#play:not([hidden])),body:has(#play:not([hidden])){overflow:hidden}
 /* overlays: task player and briefing slide up from the map */
 .play.opening{animation:sheetup .36s var(--spring)}
 .play-b.step-in>*{animation:rise .38s var(--spring) both;animation-delay:calc(var(--i,0)*45ms)}
-.play-b.play-brief.step-in>*,.play-b.play-story.step-in>*{animation-name:fadein}
+.play-b.play-brief.step-in>*{animation-name:fadein}
 /* tabs / views */
 .v-in{animation:rise .32s var(--spring)}
 /* expand / collapse operations */

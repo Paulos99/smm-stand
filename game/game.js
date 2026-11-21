@@ -1,7 +1,7 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121r';
-import { api, store } from '../js/api.js?v=20261121r';
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121r';
-import { openBriefing } from './theory.js?v=20261121r';
+import { MECH, OPS, SHOP } from './data.js?v=20261121s';
+import { api, store } from '../js/api.js?v=20261121s';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121s';
+import { openBriefing } from './theory.js?v=20261121s';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
