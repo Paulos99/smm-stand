@@ -1,6 +1,6 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121o';
-import { api, store } from '../js/api.js?v=20261121o';
-import { playStep, chime } from './play.js?v=20261121o';
+import { MECH, OPS, SHOP } from './data.js?v=20261121p';
+import { api, store } from '../js/api.js?v=20261121p';
+import { playStep, chime } from './play.js?v=20261121p';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -137,12 +137,13 @@ function renderSide() {
   const opsDone = OPS.filter((o) => (S.stars[o.n] || []).length === 10 && S.stars[o.n].every((k) => k === 3)).length;
   const played = Object.values(S.stars || {}).flat().some((k) => k != null);
   const shop = S.shop || SHOP;
+  const todayIdx = S.week.indexOf('today') >= 0 ? S.week.indexOf('today') : S.today ? (new Date(S.today + 'T12:00').getDay() + 6) % 7 : -1;
   $('#side').innerHTML = `
     <section class="panel" data-panel="daily" aria-labelledby="p-daily">
       <h2 id="p-daily">${ico('flame', 'h-ic flame')}Тренировка дня</h2>
       <p class="muted">${S.trainedToday ? 'Сегодня тренировка зачтена, огонёк горит. Можно повторить ещё раз ради практики.' : played ? 'Шесть коротких заданий из пройденных шагов. Чаще всего попадаются те, где у вас меньше трёх звёзд.' : 'Шесть коротких заданий. Пока шагов мало, берём из начала первой операции.'}</p>
-      <div class="train-cta"><button class="cta cta-sm" type="button" data-play="0-0">${S.trainedToday ? 'Потренироваться ещё' : 'Начать тренировку'}</button><span class="fine">${S.trainedToday ? 'Повтор: +2 опыта' : 'До +25 опыта, раз в день'}</span></div>
-      <ol class="week">${days.map((d, i) => `<li class="day day-${S.week[i] || 'none'}"><span class="day-c">${S.week[i] === 'ok' ? ico('check') : S.week[i] === 'freeze' ? ico('snow') : ''}</span><span class="day-l">${d}</span></li>`).join('')}</ol>
+      <div class="train-cta"><button class="cta cta-sm" type="button" data-play="0-0"><span class="emo" aria-hidden="true">🔥</span>${S.trainedToday ? 'Потренироваться ещё' : 'Начать тренировку'}</button><span class="fine">${S.trainedToday ? 'Повтор: +2 опыта' : 'До +25 опыта, раз в день'}</span></div>
+      <ol class="week">${days.map((d, i) => `<li class="day day-${S.week[i] || 'none'}${i === todayIdx ? ' is-today' : ''}"${i === todayIdx ? ' aria-current="date"' : ''}><span class="day-c">${S.week[i] === 'ok' ? '<span class="emo" role="img" aria-label="день засчитан">🔥</span>' : S.week[i] === 'freeze' ? ico('snow') : ''}</span><span class="day-l">${d}</span></li>`).join('')}</ol>
       <p class="fine">Огонёк: <b class="tn">${S.streak}</b> · рекорд <b class="tn">${S.best}</b> ${plural(S.best, 'день', 'дня', 'дней')}. День засчитывается за любой шаг или тренировку. За каждые 7 дней подряд даём заморозку, она спасёт огонёк при пропуске.</p>
     </section>
     <section class="panel" data-panel="agent" aria-labelledby="p-agent">
