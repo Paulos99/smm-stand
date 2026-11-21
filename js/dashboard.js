@@ -3,7 +3,7 @@ import { h } from './ui.js';
 const fmtMs = ms => { if (!ms) return '0 с'; const s = Math.round(ms / 1000); return s < 60 ? `${s} с` : `${Math.floor(s / 60)} мин ${s % 60} с`; };
 const msk = t => new Date(t).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' МСК';
 const avg = a => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
-const V = k => (k === 'A' ? 'А' : 'Б');
+const V = k => (k === 'A' ? 'А' : k === 'G' ? 'игра' : 'Б');
 export default async function (app, { FORMATS, api }) {
   app.replaceChildren(h('div', { class: 'wrap' }, h('p', { class: 'muted', style: 'padding:30px 0' }, 'Собираем статистику…')));
   let data; try { data = await api('/api/dashboard', { timeout: 45000 }); } catch (e) { app.replaceChildren(h('div', { class: 'wrap' }, h('p', { class: 'err' }, e.message))); return; }
@@ -43,11 +43,23 @@ export default async function (app, { FORMATS, api }) {
       h('h3', { class: 'section-title' }, 'Вариант А против Б'),
       h('p', { class: 'small muted' }, h('span', { style: 'color:var(--on-yellow);background:var(--yellow);padding:0 6px;border-radius:6px' }, 'А'), ' жёлтый, ', h('span', { style: 'color:#fff;background:var(--blue);padding:0 6px;border-radius:6px' }, 'Б'), ' синий. Метка «лучше» ставится, если у варианта есть данные и он впереди.'),
       h('div', { class: 'abcmp' }, list.map(fm => cmp(fm, stats(ev, fb, fm.id, 'A'), stats(ev, fb, fm.id, 'B')))),
+      gameSection(fb),
       h('h3', { class: 'section-title' }, `Отзывы (${fb.length})`),
       h('div', { class: 'tbl' }, fb.length ? [...fb].sort((a, b) => b.at - a.at).map(x => h('div', { class: 'comment' },
-        h('div', { class: 'meta' }, h('b', { style: 'color:var(--text)' }, x.name), ` · ${FORMATS.find(z => z.id === x.fmt)?.title || x.fmt} · вариант ${V(x.variant)} · ${msk(x.at)}`),
+        h('div', { class: 'meta' }, h('b', { style: 'color:var(--text)' }, x.name), ` · ${x.title || FORMATS.find(z => z.id === x.fmt)?.title || x.fmt}${x.variant === 'G' ? '' : ' · вариант ' + V(x.variant)} · ${msk(x.at)}`),
         h('div', {}, '★'.repeat(x.rating) + '☆'.repeat(5 - x.rating), x.ease ? h('span', { class: 'small muted' }, ` · ${{ yes: 'удобно', mid: 'так себе', no: 'неудобно' }[x.ease] || x.ease}`) : null),
         x.comment ? h('div', { class: 'pre', style: 'font-size:14px' }, x.comment) : null)) : h('p', { class: 'small muted', style: 'padding:10px 0' }, 'Отзывов пока нет.')));
+  }
+  function gameSection(fb) {
+    const g = (data.game || []).filter(p => !f.tester || p.name === f.tester).sort((a, b) => b.xp - a.xp);
+    const gf = fb.filter(x => x.variant === 'G'); const by = {};
+    gf.forEach(x => { (by[x.fmt] ||= { title: x.title, r: [] }).r.push(x.rating); });
+    const steps = Object.entries(by).sort(([a], [b]) => a.localeCompare(b, 'ru', { numeric: true }));
+    return h('div', {}, h('h3', { class: 'section-title' }, 'Игра «Штаб»'),
+      g.length ? h('table', {}, h('thead', {}, h('tr', {}, h('th', {}, 'Агент'), h('th', {}, 'Звание'), h('th', { class: 'num' }, 'Опыт'), h('th', { class: 'num' }, 'Звёзды'), h('th', { class: 'num' }, 'Огонёк'))),
+        h('tbody', {}, g.map(p => h('tr', {}, h('td', {}, p.name), h('td', {}, p.rank), h('td', { class: 'num' }, String(p.xp)), h('td', { class: 'num' }, `${p.stars}/180`), h('td', { class: 'num' }, String(p.streak)))))) : h('p', { class: 'small muted' }, 'В игру пока никто не играл.'),
+      steps.length ? h('table', { style: 'margin-top:12px' }, h('thead', {}, h('tr', {}, h('th', {}, 'Шаг игры'), h('th', { class: 'num' }, 'Ср. оценка'), h('th', { class: 'num' }, 'Отзывов'))),
+        h('tbody', {}, steps.map(([k, v]) => h('tr', {}, h('td', {}, (v.title || k).replace(/^Игра · /, '')), h('td', { class: 'num' }, avg(v.r).toFixed(1)), h('td', { class: 'num' }, String(v.r.length)))))) : null);
   }
   function cmp(fm, a, b) {
     const rows = [['Запуски', a.opens, b.opens, String], ['Тестировщики', a.testers, b.testers, String], ['Ср. время', a.time, b.time, fmtMs], ['Дошли до конца', a.compl, b.compl, x => Math.round(x) + '%'],
@@ -65,7 +77,7 @@ export default async function (app, { FORMATS, api }) {
   }
   function csv() {
     const { fb } = sel(); const q = s => `"${String(s ?? '').replace(/"/g, '""')}"`;
-    const rows = [['Дата МСК', 'Имя', 'Формат', 'Вариант', 'Оценка', 'Удобство', 'Комментарий'], ...fb.map(x => [msk(x.at), x.name, FORMATS.find(z => z.id === x.fmt)?.title || x.fmt, V(x.variant), x.rating, x.ease, x.comment])];
+    const rows = [['Дата МСК', 'Имя', 'Формат', 'Вариант', 'Оценка', 'Удобство', 'Комментарий'], ...fb.map(x => [msk(x.at), x.name, x.title || FORMATS.find(z => z.id === x.fmt)?.title || x.fmt, V(x.variant), x.rating, x.ease, x.comment])];
     const blob = new Blob(['\ufeff' + rows.map(r => r.map(q).join(';')).join('\n')], { type: 'text/csv' });
     const a = h('a', { href: URL.createObjectURL(blob), download: 'stand-feedback.csv' }); document.body.append(a); a.click(); a.remove();
   }
