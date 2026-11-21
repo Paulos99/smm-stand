@@ -31,13 +31,31 @@ function correctIndex(it, opts) {
   return -1;
 }
 const truthOf = v => (typeof v === 'boolean' ? v : /^(true|да|правда|1)$/i.test(String(v ?? '').trim()) ? true : /^(false|нет|миф|0)$/i.test(String(v ?? '').trim()) ? false : null);
+// Tolerant JSON extraction: code fences, text around JSON, bare arrays, trailing commas, smart quotes.
+export function extractJson(raw) {
+  let s = String(raw || '').replace(/```[a-zA-Z]*\s*/g, '').replace(/```/g, '').replace(/^\uFEFF/, '');
+  const tries = [];
+  const o1 = s.indexOf('{'), o2 = s.lastIndexOf('}'), a1 = s.indexOf('['), a2 = s.lastIndexOf(']');
+  if (o1 >= 0 && o2 > o1) tries.push(s.slice(o1, o2 + 1));
+  if (a1 >= 0 && a2 > a1) tries.push(s.slice(a1, a2 + 1));
+  tries.push(s.trim());
+  const fix = t => t.replace(/[\u201C\u201D\u201E]/g, '"').replace(/,\s*([}\]])/g, '$1').replace(/([{,]\s*)'([^'\n]+?)'\s*:/g, '$1"$2":');
+  for (const t of tries) for (const c of [t, fix(t)]) { try { const j = JSON.parse(c); return Array.isArray(j) ? { items: j } : j; } catch {} }
+  // last resort: collect separate {...} objects line by line
+  const objs = [...s.matchAll(/\{[^{}]*\}/g)].map(m => { try { return JSON.parse(fix(m[0])); } catch { return null; } }).filter(x => x && (x.q || x.question || x.statement));
+  if (objs.length) return { items: objs };
+  throw new Error('bad json');
+}
 export function parseGame(raw, kind) {
-  const s = String(raw || '').replace(/```(?:json)?/g, '');
-  const j = JSON.parse(s.slice(s.indexOf('{'), s.lastIndexOf('}') + 1));
+  const j = extractJson(raw);
+  const list = j.items || j.questions || j.statements || j.quiz || j.game || Object.values(j).find(Array.isArray) || [];
   const out = [];
-  for (const it of j.items || []) {
+  for (let it of list) {
+    if (it && !it.q) it = { ...it, q: it.question || it.statement || it.text };
+    if (it && !it.options && Array.isArray(it.variants)) it = { ...it, options: it.variants };
+    if (it && !it.why) it = { ...it, why: it.explanation || it.comment || '' };
     if (!it || !it.q) continue;
-    if (kind === 'B') { const t = truthOf(it.truth ?? it.answer); if (t == null) continue; out.push({ q: strip(it.q), o: ['Правда', 'Миф'], a: t ? 0 : 1, why: it.why || '' }); continue; }
+    if (kind === 'B') { const t = truthOf(it.truth ?? it.isTrue ?? it.true ?? it.answer ?? it.correct); if (t == null) continue; out.push({ q: strip(it.q), o: ['Правда', 'Миф'], a: t ? 0 : 1, why: it.why || '' }); continue; }
     const opts = (it.options || []).map(strip).filter(Boolean);
     if (opts.length < 2) continue;
     const a = correctIndex(it, opts); if (a < 0 || a >= opts.length) continue; // skip questions we cannot map safely

@@ -11,10 +11,10 @@ export default function (stage, ctx) {
   const gen = nextBtn('Собрать игру', async () => {
     const text = sel.value === 'own' ? own.value.trim() : lectures[+sel.value]?.text;
     if (!text || text.length < 200) { msg.replaceChildren(h('div', { class: 'explain' }, 'Нужен текст хотя бы на пару абзацев.')); return; }
-    gen.disabled = true; gen.textContent = 'ИИ собирает игру, 10–20 секунд…'; ctx.step('generate');
+    gen.disabled = true; gen.textContent = 'ИИ собирает игру, до минуты…'; ctx.step('generate');
     try {
-      const r = await ctx.api('/api/ai', { method: 'POST', body: { mode: 'game', variant: v, text }, timeout: 45000 });
-      const items = parseGame(r.text, v);
+      const r = await ctx.api('/api/ai', { method: 'POST', body: { mode: 'game', variant: v, text }, timeout: 80000 });
+      const items = Array.isArray(r.items) ? r.items : parseGame(r.text, v);
       if (!items.length) throw new Error('ИИ вернул пустую игру, попробуйте ещё раз');
       play(items);
     } catch (e) { msg.replaceChildren(h('div', { class: 'explain' }, /JSON|Unexpected/.test(e.message) ? 'ИИ ответил не в том формате. Нажмите ещё раз.' : e.message)); }
