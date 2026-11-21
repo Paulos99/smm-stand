@@ -1,6 +1,6 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121j';
-import { api, store } from '../js/api.js?v=20261121j';
-import { playStep } from './play.js?v=20261121j';
+import { MECH, OPS, SHOP } from './data.js?v=20261121k';
+import { api, store } from '../js/api.js?v=20261121k';
+import { playStep, chime } from './play.js?v=20261121k';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -12,7 +12,7 @@ const TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZon
 const CONTENT = {};
 let S = null; // server state
 
-async function content(op) { if (!CONTENT[op]) CONTENT[op] = (await import(`./content/op${op}.js?v=20261121j`)).default; return CONTENT[op]; }
+async function content(op) { if (!CONTENT[op]) CONTENT[op] = (await import(`./content/op${op}.js?v=20261121k`)).default; return CONTENT[op]; }
 const starsOf = (op) => S?.stars?.[op] || Array(10).fill(null);
 const opState = (n) => (S.open.includes(n) ? (n < Math.max(...S.open) ? 'done' : 'current') : 'locked');
 const curOp = () => Math.max(...S.open);
@@ -199,7 +199,7 @@ function reward(o, s, step, r) {
   const sub = r.stars === 3 ? (r.opDone ? 'Операция закрыта на все 30 звёзд. Допуск к следующей получен!' : 'Все три звезды. Так держать.') : r.stars >= 1 ? 'Для допуска к следующей операции нужно 3 звезды. Можно перепройти сейчас или позже.' : 'Нужна хотя бы 1 звезда, чтобы открыть следующий шаг. Попробуйте ещё раз, вы справитесь.';
   const err = step.items[0].type === 'brief' ? `Фактов в брифе: ${r.total - r.errors} из ${r.total}` : r.errors ? `Ошибок: ${r.errors}` : 'Без ошибок';
   box.innerHTML = `<div class="rw" role="dialog" aria-modal="true" aria-labelledby="rw-t" tabindex="-1">
-    <div class="rw-stars">${[0, 1, 2].map((i) => `<svg class="rs ${i < r.stars ? 'on' : ''}" style="--d:${i * 160}ms" aria-hidden="true"><use href="#i-star"/></svg>`).join('')}</div>
+    <div class="rw-stars${r.stars === 3 ? ' all' : ''}" role="img" aria-label="Звёзд: ${r.stars} из 3">${[0, 1, 2].map((i) => `<span class="rsw ${i < r.stars ? 'on' : ''}" style="--d:${STAR0 + i * STAR_GAP}ms">${i < r.stars ? `<i class="rs-glow"></i><i class="rs-ring"></i><i class="rs-sp">${[0, 1, 2, 3, 4, 5, 6, 7].map((k) => `<b style="--a:${k * 45 + (k % 2 ? 0 : 22)}deg"></b>`).join('')}</i>` : ''}<svg class="rs" aria-hidden="true"><use href="#i-star"/></svg></span>`).join('')}</div>
     <h2 id="rw-t">${head}</h2>
     <p class="rw-sub">${sub}</p>
     <div class="rw-xp"><span class="rw-xp-n tn" data-to="${r.gain}">+0</span> опыта <span class="muted">· ${err}</span></div>
@@ -216,12 +216,21 @@ function reward(o, s, step, r) {
   const rw = box.firstElementChild; rw.focus({ preventScroll: true });
   const n = box.querySelector('.rw-xp-n'), to = r.gain;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let skip = reduce; const t0 = performance.now(), D = 900;
+  let skip = reduce; const t0 = performance.now();
+  // stars first (one by one), then XP count-up, then badges
+  const xpAt = STAR0 + r.stars * STAR_GAP + (r.stars === 3 ? 260 : 120), D = r.stars === 3 ? 650 : 800;
+  box.style.setProperty('--after', xpAt + D - 200 + 'ms');
   box.classList.add('celebrate'); if (reduce) box.classList.add('skip');
-  const tick = (t) => { const p = skip ? 1 : Math.min(1, (t - t0 - 350) / D); n.textContent = '+' + Math.max(0, Math.round(to * (p < 0 ? 0 : 1 - Math.pow(1 - p, 3)))); if (p < 1) requestAnimationFrame(tick); else box.classList.add('skip'); };
+  const NOTES = [523.25, 659.25, 783.99];
+  const timers = [];
+  for (let i = 0; i < r.stars; i++) timers.push(setTimeout(() => chime([NOTES[i]]), (reduce ? 120 + i * 160 : STAR0 + i * STAR_GAP + 60)));
+  if (r.stars === 3) timers.push(setTimeout(() => chime([1046.5, 1318.5, 1568, 2093], 0.055, 0.07), reduce ? 640 : STAR0 + 2 * STAR_GAP + 330));
+  if (r.stars === 0) timers.push(setTimeout(() => chime([392, 330], 0.12, 0.06), 250));
+  const tick = (t) => { const p = skip ? 1 : Math.min(1, (t - t0 - xpAt) / D); n.textContent = '+' + Math.max(0, Math.round(to * (p < 0 ? 0 : 1 - Math.pow(1 - p, 3)))); if (p < 1) requestAnimationFrame(tick); else box.classList.add('skip'); };
   requestAnimationFrame(tick);
-  rw.addEventListener('pointerdown', () => { skip = true; box.classList.add('skip'); }, { once: true });
+  rw.addEventListener('pointerdown', () => { skip = true; box.classList.add('skip'); timers.forEach(clearTimeout); }, { once: true });
 }
+const STAR0 = 220, STAR_GAP = 280;
 function closeReward() { const b = $('#reward'); b.hidden = true; b.className = ''; b.innerHTML = ''; document.body.classList.remove('playing'); requestAnimationFrame(drawLinks); }
 
 // ---------- views ----------

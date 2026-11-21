@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors } from './content/grade.js?v=20261121j';
-import { MECH } from './data.js?v=20261121j';
+import { itemErrors } from './content/grade.js?v=20261121k';
+import { MECH } from './data.js?v=20261121k';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -24,6 +24,22 @@ function beep(ok) {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.12, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + (ok ? 0.26 : 0.3));
     const notes = ok ? [660, 990] : [220, 180];
     notes.forEach((f, i) => { const o = actx.createOscillator(); o.type = ok ? 'triangle' : 'sine'; o.frequency.setValueAtTime(f, t + i * 0.09); o.connect(g); o.start(t + i * 0.09); o.stop(t + 0.3); });
+  } catch {}
+}
+// reward chimes: bell-like note (sine + soft overtone), rising per star
+export function chime(freqs, gap = 0.07, vol = 0.11) {
+  if (!sound.on) return;
+  try {
+    actx ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const t0 = actx.currentTime + 0.01;
+    freqs.forEach((f, i) => {
+      const t = t0 + i * gap, g = actx.createGain(); g.connect(actx.destination);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+      [[f, 'sine', 1], [f * 2, 'triangle', 0.25], [f * 3.01, 'sine', 0.08]].forEach(([fr, ty, a]) => {
+        const o = actx.createOscillator(), og = actx.createGain(); o.type = ty; o.frequency.setValueAtTime(fr, t); og.gain.value = a; o.connect(og); og.connect(g); o.start(t); o.stop(t + 0.75);
+      });
+    });
   } catch {}
 }
 const vibrate = ok => { try { if (!ok && navigator.vibrate) navigator.vibrate(30); } catch {} };
