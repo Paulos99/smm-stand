@@ -8,12 +8,23 @@ export function itemErrors(it, a) {
     case 'swipe': return a === it.truth ? 0 : 1;
     case 'blocks': { if (!Array.isArray(a)) return it.key.length; const w = it.key.filter((k, i) => a[i] !== k).length; return w ? Math.min(2, w) : 0; }
     case 'pairs': { if (!Array.isArray(a)) return it.key.length; return Math.min(3, it.key.filter((k, i) => a[i] !== k).length); }
-    case 'cloze': { if (!Array.isArray(a)) return it.key.length; return Math.min(2, it.key.filter((k, i) => a[i] !== k).length); }
+    case 'cloze': { if (!Array.isArray(a)) return it.key.length; return Math.min(2, clozeMarks(it, a).filter(ok => !ok).length); }
     case 'clue': { if (!Array.isArray(a)) return 3; const real = new Set(it.spots.filter(s => s.bad).map(s => s.id)); const found = new Set(a.filter(x => real.has(x)));
       if (found.size < real.size) return 3; return Math.min(3, a.filter(x => !real.has(x)).length); }
     case 'sort': { if (!Array.isArray(a)) return 3; return Math.min(3, it.cards.filter((c, i) => a[i] !== c.col).length); }
     default: return 1;
   }
+}
+// cloze: key[i] may be a number or an array of equivalent chip indices; `unordered` lists groups of gap positions
+// (indices into gaps/key) whose answers form a list in any order (true = all gaps). Returns ok/bad per gap.
+const acc = k => [].concat(k);
+export function clozeMarks(it, a) {
+  const n = it.key.length, ok = Array(n).fill(false);
+  const groups = it.unordered === true ? [[...Array(n).keys()]] : (it.unordered || []);
+  const inGroup = new Set(groups.flat());
+  for (let i = 0; i < n; i++) if (!inGroup.has(i)) ok[i] = acc(it.key[i]).includes(a[i]);
+  for (const g of groups) { const left = g.map(i => acc(it.key[i])); for (const i of g) { const j = left.findIndex(ks => ks && ks.includes(a[i])); if (j >= 0) { ok[i] = true; left[j] = null; } } }
+  return ok;
 }
 export function weight(it) { return it.type === 'story' ? 0 : it.type === 'pairs' || it.type === 'sort' ? 2 : 1; }
 export function starsFor(errors, total) {

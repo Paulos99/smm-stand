@@ -729,3 +729,4 @@ html:has(#play:not([hidden])),body:has(#play:not([hidden])){overflow:hidden}
 .play-brief>.thread>*{flex:none}
 .play-brief>.brief-hint{flex:none;max-height:30vh;overflow:auto}
 @media (max-height:700px){.play-brief .brief-list:not([open]) .checks{display:none}.play-brief>.brief-top{margin-bottom:6px;padding-bottom:6px}}
+@media (max-width:600px){.clue-cover{aspect-ratio:1590/680}}

@@ -1,6 +1,6 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121n';
-import { api, store } from '../js/api.js?v=20261121n';
-import { playStep, chime } from './play.js?v=20261121n';
+import { MECH, OPS, SHOP } from './data.js?v=20261121o';
+import { api, store } from '../js/api.js?v=20261121o';
+import { playStep, chime } from './play.js?v=20261121o';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;

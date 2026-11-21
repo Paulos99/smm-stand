@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors } from './content/grade.js?v=20261121n';
-import { MECH } from './data.js?v=20261121n';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261121o';
+import { MECH } from './data.js?v=20261121o';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -256,7 +256,7 @@ R.cloze = (it, c) => new Promise(done => {
   draw();
   async function go() {
     checked = true; check.disabled = true; chips.forEach(ch => { ch.disabled = true; });
-    const errs = itemErrors(it, fill); gapEls.forEach((g, k) => g.classList.add(fill[k] === it.key[k] ? 'ok' : 'bad'));
+    const errs = itemErrors(it, fill); const marks = clozeMarks(it, fill); gapEls.forEach((g, k) => g.classList.add(marks[k] ? 'ok' : 'bad'));
     await c.feedback(!errs, errs ? 'Расшифровка с ошибкой' : 'Расшифровано!', it.why); c.answer([...fill]); done();
   }
 });
