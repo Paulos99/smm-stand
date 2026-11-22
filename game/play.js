@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors, clozeMarks } from './content/grade.js?v=20261122a';
-import { MECH } from './data.js?v=20261122a';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261122b';
+import { MECH } from './data.js?v=20261122b';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -481,14 +481,14 @@ R.brief = (it, c) => new Promise(done => {
   const thread = el('div', { class: 'thread', 'aria-live': 'polite' });
   const input = el('textarea', { rows: 2, maxlength: 600, placeholder: 'Ваш вопрос клиенту…', 'aria-label': 'Ваш вопрос клиенту', onkeydown: e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } } });
   const sendB = el('button', { class: 'icon-btn send', type: 'button', 'aria-label': 'Отправить', onclick: () => send() }, ico('send'));
-  const hintB = el('button', { class: 'btn-ghost btn-s', type: 'button', onclick: () => hint() }, ico('storm'), 'Подсказка');
+  const hintB = el('button', { class: 'btn-ghost btn-s', type: 'button', 'aria-pressed': 'false', 'aria-controls': 'brief-hint', onclick: () => toggleHint() }, ico('storm'), 'Подсказка');
   const endB = el('button', { class: 'cta cta-sm', type: 'button', disabled: true, onclick: () => finish() }, 'Завершить бриф');
-  const hintBox = el('p', { class: 'brief-hint', hidden: true });
+  const hintBox = el('p', { class: 'brief-hint', id: 'brief-hint', 'aria-live': 'polite' }); const hintWrap = el('div', { class: 'brief-hint-wrap', 'aria-hidden': 'true' }, hintBox); let hintOpen = false, hintKey = '';
   c.body.append(
     el('div', { class: 'brief-top' },
       el('ol', { class: 'stages', 'aria-label': 'Этапы переговоров' }, stageEls), stageNow,
       el('details', { class: 'brief-list', open: matchMedia('(min-width: 900px)').matches }, el('summary', {}, el('span', { class: 'tn cov-n' }, `0 из ${it.topics.length}`), ' фактов в брифе'), el('ul', { class: 'checks' }, checks))),
-    el('div', { class: 'chat-top' }, el('span', { class: 'ava', 'aria-hidden': 'true' }, who.name[0]), el('div', {}, el('b', {}, who.name), el('span', {}, who.role + ' · играет ИИ'))), thread, hintBox);
+    el('div', { class: 'chat-top' }, el('span', { class: 'ava', 'aria-hidden': 'true' }, who.name[0]), el('div', {}, el('b', {}, who.name), el('span', {}, who.role + ' · играет ИИ'))), thread, hintWrap);
   c.foot.replaceChildren(el('div', { class: 'composer' }, input, sendB), el('div', { class: 'brief-actions' }, hintB, endB));
   thread.append(bubble('in', it.greet || 'Здравствуйте! Я Марина, у меня кофейня «Точка тепла» у центра. Подруга сказала, вы разбираетесь в соцсетях. Сделаете нам ленту поярче?'));
   draw();
@@ -503,9 +503,25 @@ R.brief = (it, c) => new Promise(done => {
     const last = it.stages.length - 1; stageNow.textContent = si >= last ? 'Все факты собраны. Подведите итог и завершайте бриф.' : `Сейчас: ${it.stages[si]}. Ведите разговор к этапу «${it.stages[Math.min(si + 1, last)]}».`;
     checks.forEach(li => li.classList.toggle('on', covered.has(li.dataset.id)));
     c.body.querySelector('.cov-n').textContent = `${covered.size} из ${it.topics.length}`;
+    if (hintOpen) paintHint();
     endB.disabled = asked < 3; endB.textContent = asked < 3 ? `Завершить бриф (ещё ${3 - asked} вопр.)` : 'Завершить бриф';
   }
-  function hint() { const t = it.topics.find(x => !covered.has(x.id)); hintBox.hidden = false; hintBox.textContent = t ? `Подсказка: ${t.hint} Задавайте точные вопросы, на расплывчатые клиент отвечает расплывчато.` : 'Всё собрано. Коротко перескажите клиенту договорённости и завершайте.'; }
+  function hintText() { // hint for the current stage first, then any fact that is still missing
+    const si = stageIdx(), map = it.stageMap || [['goal'], ['aud', 'offer'], ['metric', 'res', 'time']];
+    const want = map[Math.max(0, Math.min(si - 1, map.length - 1))] || [];
+    const t = it.topics.find(x => want.includes(x.id) && !covered.has(x.id)) || it.topics.find(x => !covered.has(x.id));
+    const stage = it.stages[Math.min(si, it.stages.length - 1)];
+    return t ? { key: t.id, stage, text: `${t.hint} Задавайте точные вопросы, на расплывчатые клиент отвечает расплывчато.` } : { key: 'done', stage: it.stages[it.stages.length - 1], text: 'Всё собрано. Коротко перескажите клиенту договорённости и завершайте.' };
+  }
+  function paintHint() {
+    const h = hintText(); const changed = hintKey && h.key !== hintKey; hintKey = h.key;
+    hintBox.replaceChildren(el('span', { class: 'bh-stage' }, `Подсказка · ${h.stage}`), h.text);
+    if (changed) { hintBox.classList.remove('swap'); void hintBox.offsetWidth; hintBox.classList.add('swap'); }
+  }
+  function toggleHint(force) {
+    hintOpen = force ?? !hintOpen; if (hintOpen) paintHint();
+    hintWrap.classList.toggle('open', hintOpen); hintWrap.setAttribute('aria-hidden', String(!hintOpen)); hintB.setAttribute('aria-pressed', String(hintOpen));
+  }
   async function send() {
     const text = input.value.trim(); if (!text || busy) return; busy = true; sendB.disabled = true; input.value = '';
     const b = bubble('out', text); b.classList.add('sending'); thread.append(b); requestAnimationFrame(() => b.classList.remove('sending'));

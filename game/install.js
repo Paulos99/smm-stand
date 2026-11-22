@@ -10,7 +10,7 @@ export const canFullscreen = () => !standalone() && !!document.documentElement.r
 const hidden = () => { try { return Date.now() < +(localStorage.getItem(KEY) || 0); } catch { return false; } };
 
 export function initInstall({ toast, onChange }) {
-  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20261122a', { scope: './' }).catch(() => {}));
+  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20261122b', { scope: './' }).catch(() => {}));
   addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; onChange?.(); banner(toast); });
   addEventListener('appinstalled', () => { deferred = null; document.getElementById('install-bar')?.remove(); toast('Штаб на рабочем столе. Открывайте его как приложение'); onChange?.(); });
   document.addEventListener('fullscreenchange', () => onChange?.());

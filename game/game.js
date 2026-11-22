@@ -1,11 +1,11 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261122a';
-import { api, store } from '../js/api.js?v=20261122a';
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122a';
-import { openBriefing } from './theory.js?v=20261122a';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122a';
-import { createMissions, photoEditor } from './missions.js?v=20261122a';
-import { createTeacher } from './teacher.js?v=20261122a';
-import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen } from './install.js?v=20261122a';
+import { MECH, OPS, SHOP } from './data.js?v=20261122b';
+import { api, store } from '../js/api.js?v=20261122b';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122b';
+import { openBriefing } from './theory.js?v=20261122b';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122b';
+import { createMissions, photoEditor } from './missions.js?v=20261122b';
+import { createTeacher } from './teacher.js?v=20261122b';
+import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen } from './install.js?v=20261122b';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -377,17 +377,58 @@ function renderAll() {
 }
 
 const SCHOOL = 'https://smmorbita.ru/admin.html';
+// School login: the password goes straight to the school API (smmorbita.ru), never to the game server.
+// The school checks it with its own limits, returns a 60-second signed pass, and only the pass reaches the game.
+const SCHOOL_APIS = ['https://api.smmorbita.ru', 'https://bba2iub2khhe4eg3fagq.containers.yandexcloud.net'];
+async function schoolFetch(path, { body, token } = {}) {
+  let last;
+  for (const base of SCHOOL_APIS) {
+    try {
+      const r = await fetch(base + path, { method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store', headers: { 'Content-Type': 'application/json', ...(token ? { 'X-School-Token': token } : {}) }, body: JSON.stringify(body || {}) });
+      const j = await r.json().catch(() => ({})); return { ok: r.ok, status: r.status, j, base };
+    } catch (er) { last = er; }
+  }
+  throw Object.assign(new Error('Школа не отвечает. Проверьте интернет и попробуйте ещё раз.'), { cause: last });
+}
+async function schoolLogin(login, password) {
+  const r = await schoolFetch('/api/login', { body: { login, password } });
+  if (!r.ok || !r.j.token) throw new Error(r.j.error || 'Не получилось войти. Попробуйте ещё раз.');
+  const tok = r.j.token; let h;
+  try { h = await schoolFetch('/api/game-handoff', { token: tok }); }
+  finally { schoolFetch('/api/logout', { token: tok }).catch(() => {}); } // the school session is not needed after the pass is issued
+  if (!h.ok || !h.j.token) throw new Error(h.j.error || 'Школа не выдала пропуск. Попробуйте ещё раз.');
+  window.__schoolPass = h.j.token; await schoolPass();
+}
 function entry(msg = '') {
   $('.app').hidden = true; const e = $('#entry'); e.hidden = false;
   e.innerHTML = `<section class="entry-f" aria-labelledby="entry-t">
     <span class="logo"><span class="beacon" aria-hidden="true"></span>ШТАБ</span>
-    <img src="../assets/stickers/accepted.webp" alt="" width="150" height="150" class="entry-st">
-    <h1 id="entry-t">Вход через школу</h1>
-    <p class="muted">Штаб открывается из аккаунта СММ ШКОЛЫ. Зайдите в кабинет на smmorbita.ru и нажмите «Играть» в блоке «Режим игры». Пароль здесь не нужен, прогресс сохранится.</p>
-    ${msg ? `<p class="err" role="alert">${esc(msg)}</p>` : ''}
-    <a class="cta" href="${SCHOOL}"><span class="cta-main">Открыть школу ${ico('ext')}</span></a>
-    <p class="fine">Пока режим игры открыт преподавателям. Ученикам кнопку добавим позже.</p>
+    <img src="../assets/stickers/accepted.webp" alt="Задание принято" width="150" height="150" class="entry-st">
+    <div class="login-card">
+      <div class="lc-top"><span>Протокол авторизации</span><b aria-hidden="true">⊕</b></div>
+      <h1 id="entry-t">Вход в штаб</h1>
+      <p class="muted">Логин и пароль те же, что в СММ ШКОЛЕ.</p>
+      <form id="login-form" novalidate>
+        <label for="lg-login">Логин</label>
+        <input id="lg-login" name="login" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Ваш логин" maxlength="64" required>
+        <label for="lg-pass">Пароль</label>
+        <div class="pw-field"><input id="lg-pass" name="password" type="password" autocomplete="current-password" placeholder="Ваш пароль" maxlength="128" required><button type="button" class="pw-eye" aria-label="Показать пароль" aria-pressed="false">Показать</button></div>
+        <p class="err" id="lg-err" role="alert" aria-live="polite">${msg ? esc(msg) : ''}</p>
+        <button class="cta" type="submit" id="lg-go"><span class="cta-main">Войти</span></button>
+      </form>
+      <p class="fine">Забыли пароль? Восстановить его можно на <a href="https://smmorbita.ru/login" rel="noopener">smmorbita.ru</a>. Из кабинета школы можно зайти и без пароля: кнопка «Играть» в блоке «Режим игры».</p>
+    </div>
   </section>`;
+  const f = $('#login-form'), err = $('#lg-err'), go = $('#lg-go'), pw = $('#lg-pass'), eye = e.querySelector('.pw-eye');
+  eye.onclick = () => { const show = pw.type === 'password'; pw.type = show ? 'text' : 'password'; eye.textContent = show ? 'Скрыть' : 'Показать'; eye.setAttribute('aria-pressed', String(show)); eye.setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль'); };
+  f.onsubmit = async (ev) => {
+    ev.preventDefault(); const login = f.login.value.trim(), password = pw.value;
+    if (!login || !password) { err.textContent = 'Введите логин и пароль.'; (login ? pw : f.login).focus(); return; }
+    go.disabled = true; go.querySelector('.cta-main').textContent = 'Проверяем…'; err.textContent = '';
+    try { await schoolLogin(login, password); pw.value = ''; boot(); }
+    catch (er) { entry(er.message); $('#lg-login').value = login; $('#lg-pass').focus(); }
+  };
+  if (!msg) setTimeout(() => f.login.focus({ preventScroll: true }), 50);
 }
 async function schoolPass() { // one-time pass from smmorbita.ru, already removed from the address bar by theme-init.js
   const pass = window.__schoolPass; if (!pass) return; window.__schoolPass = '';
