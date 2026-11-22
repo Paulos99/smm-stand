@@ -1,12 +1,12 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261122k';
-import { api, store } from '../js/api.js?v=20261122k';
-import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122k';
-import { openBriefing } from './theory.js?v=20261122k';
-import { playFinale } from './finale.js?v=20261122k';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122k';
-import { createMissions, photoEditor } from './missions.js?v=20261122k';
-import { createTeacher } from './teacher.js?v=20261122k';
-import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122k';
+import { MECH, OPS, SHOP } from './data.js?v=20261122l';
+import { api, store } from '../js/api.js?v=20261122l';
+import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122l';
+import { openBriefing } from './theory.js?v=20261122l';
+import { playFinale } from './finale.js?v=20261122l';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122l';
+import { createMissions, photoEditor } from './missions.js?v=20261122l';
+import { createTeacher } from './teacher.js?v=20261122l';
+import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122l';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -219,7 +219,7 @@ function renderSide() {
       ${S.bought?.length ? `<h3>Получено в Лавке</h3><ul class="bought">${S.bought.slice().reverse().map((b) => `<li><span>${esc(b.t)}</span><span class="tn muted">${new Date(b.at).toLocaleDateString('ru-RU')}</span></li>`).join('')}</ul>` : ''}
       ${canInstall() || canFullscreen() ? `<div class="ag-app"><div><b>Приложение</b><p class="fine">Поставьте штаб на рабочий стол: он будет открываться сразу на весь экран.</p></div><div class="ag-pa">${canInstall() ? `<button class="btn-ghost btn-s" type="button" data-app-install>${ico('send')}Установить</button>` : ''}${canFullscreen() ? `<button class="btn-ghost btn-s" type="button" data-fs>${document.fullscreenElement ? 'Обычный экран' : 'Во весь экран'}</button>` : ''}</div></div>` : ''}
       <div class="agent-foot">
-        ${S.role === 'teacher' ? `<button class="btn-ghost btn-s" type="button" data-go="teach">${ico('chart')}Кабинет</button><a class="btn-ghost btn-s" href="../#/dash">${ico('chart')}Статистика</a>` : ''}
+        ${S.role === 'teacher' ? `<button class="btn-ghost btn-s" type="button" data-go="teach">${ico('chart')}Кабинет</button>` : ''}
         <button class="btn-ghost btn-s" type="button" data-logout>${ico('user')}Выйти</button>
       </div>
     </section>
