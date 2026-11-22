@@ -37,3 +37,19 @@ export async function api(path, { method = 'GET', body, timeout = 30000 } = {}) 
   if (!res.r.ok) throw new Error(res.j.error || 'Ошибка ' + res.r.status);
   return res.j;
 }
+// binary files from the API (lesson slides): the token goes in a header, so paid images never sit at a public URL
+export async function apiBlob(path, { timeout = 30000 } = {}) {
+  const headers = store.token ? { 'x-stand-token': store.token } : {};
+  const order = [preferred, ...API_BASES.keys()].filter((v, i, a) => a.indexOf(v) === i);
+  let last;
+  for (const idx of order) {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), timeout);
+    try {
+      const r = await fetch(API_BASES[idx] + path, { headers, signal: c.signal });
+      if (r.status === 401) throw Object.assign(new Error('Сессия закончилась, войдите снова'), { fatal: true });
+      if (!r.ok) throw Object.assign(new Error('Ошибка ' + r.status), { fatal: r.status === 404 });
+      preferred = idx; return await r.blob();
+    } catch (e) { last = e; if (e.fatal) throw e; } finally { clearTimeout(t); }
+  }
+  throw last || new Error('Нет связи с сервером');
+}

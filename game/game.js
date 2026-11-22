@@ -1,11 +1,11 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261122c';
-import { api, store } from '../js/api.js?v=20261122c';
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122c';
-import { openBriefing } from './theory.js?v=20261122c';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122c';
-import { createMissions, photoEditor } from './missions.js?v=20261122c';
-import { createTeacher } from './teacher.js?v=20261122c';
-import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122c';
+import { MECH, OPS, SHOP } from './data.js?v=20261122d';
+import { api, store } from '../js/api.js?v=20261122d';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122d';
+import { openBriefing } from './theory.js?v=20261122d';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122d';
+import { createMissions, photoEditor } from './missions.js?v=20261122d';
+import { createTeacher } from './teacher.js?v=20261122d';
+import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122d';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;

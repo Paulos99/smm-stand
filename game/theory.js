@@ -1,6 +1,7 @@
 // Operation briefing: video (placeholder until a URL is set in the data), lecture reader in the school's mobile style, lesson materials.
 // The lecture text is paid school content: it comes from the API for signed-in players only and is never stored in this public repo.
-import { chime, sfx, sound, replay } from './play.js?v=20261122c';
+import { chime, sfx, sound, replay } from './play.js?v=20261122d';
+import { createDeck } from './deck.js?v=20261122d';
 
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
@@ -30,7 +31,7 @@ function videoBlock(v) {
 
 export function openBriefing({ op, api, toast, onDone, onClose }) {
   const root = document.getElementById('play');
-  let closed = false;
+  let closed = false, deck = null;
   const bar = el('i'); const prog = el('div', { class: 'pbar pbar-read', role: 'progressbar', 'aria-label': 'Прочитано', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': 0 }, bar);
   const chap = el('span', { class: 'th-chap tn' }, '');
   const head = el('header', { class: 'play-h' },
@@ -39,10 +40,10 @@ export function openBriefing({ op, api, toast, onDone, onClose }) {
     el('button', { class: 'icon-btn' + (sound.on ? '' : ' off'), type: 'button', 'aria-label': 'Звук', 'aria-pressed': String(sound.on), onclick: e => { sound.on = !sound.on; e.currentTarget.setAttribute('aria-pressed', String(sound.on)); e.currentTarget.classList.toggle('off', !sound.on); } }, ico('sound')));
   const body = el('main', { class: 'play-b play-theory' }, el('div', { class: 'play-wait' }, el('span', { class: 'spin', 'aria-hidden': 'true' }), 'Загружаем брифинг…'));
   root.replaceChildren(head, body); root.hidden = false; document.body.classList.add('playing'); replay(root, 'opening'); root.scrollTop = 0; root.focus?.(); sfx.page();
-  const onKey = e => { if (e.key === 'Escape' && !root.hidden) close(); };
+  const onKey = e => { if (e.key === 'Escape' && !root.hidden && !document.querySelector('.deck-fs')) close(); };
   document.addEventListener('keydown', onKey);
   function close(done) {
-    if (closed) return; closed = true; document.removeEventListener('keydown', onKey); root.removeEventListener('scroll', onScroll);
+    if (closed) return; closed = true; deck?.destroy(); document.removeEventListener('keydown', onKey); root.removeEventListener('scroll', onScroll);
     root.hidden = true; root.replaceChildren(); document.body.classList.remove('playing'); if (!done) onClose?.();
   }
   let secs = [], ticking = false;
@@ -88,7 +89,7 @@ export function openBriefing({ op, api, toast, onDone, onClose }) {
         el('p', { class: 'th-k' }, ico('book'), `Брифинг · урок ${op}`),
         el('h1', {}, L.title),
         el('p', { class: 'th-meta muted' }, el('span', { class: 'tn' }, `≈ ${L.minutes} мин чтения`), el('span', { class: 'dot', 'aria-hidden': 'true' }), el('span', {}, `${L.files.length} ${plural(L.files.length, 'материал', 'материала', 'материалов')}`), L.done ? null : el('span', { class: 'dot', 'aria-hidden': 'true' }), L.done ? null : el('span', { class: 'tn' }, `+${L.xp} опыта`))),
-      videoBlock(L.video), reader, files, end);
+      videoBlock(L.video), (deck = createDeck({ op, n: L.slides?.n || 0, w: L.slides?.w, h: L.slides?.h, toast })).node, reader, files, end);
     secs = [...rbody.querySelectorAll('.reader-sec')]; onScroll();
     async function finish() {
       doneBtn.disabled = true;

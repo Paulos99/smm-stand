@@ -1,7 +1,7 @@
 // Teacher cabinet: students progress, hardest steps, missions editor + judging, photo moderation.
-import { sfx, chime, stagger, replay } from './play.js?v=20261122c';
-import { img, left } from './missions.js?v=20261122c';
-import { badge, avatar } from './team.js?v=20261122c';
+import { sfx, chime, stagger, replay } from './play.js?v=20261122d';
+import { img, left } from './missions.js?v=20261122d';
+import { badge, avatar } from './team.js?v=20261122d';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
