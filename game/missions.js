@@ -1,5 +1,5 @@
 // Weekly missions (real cases), photo editor for the agent profile. Server validates everything.
-import { chime, sfx, replay, stagger } from './play.js?v=20261122h';
+import { chime, sfx, replay, stagger } from './play.js?v=20261122i';
 import { API_BASES } from '../js/config.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

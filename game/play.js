@@ -1,6 +1,8 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors, clozeMarks } from './content/grade.js?v=20261122h';
-import { MECH } from './data.js?v=20261122h';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261122i';
+import { MECH } from './data.js?v=20261122i';
+import { voiceBubble, attachRecorder, canRecord, b64Blob, decode, peaksOf, toUlaw, stopAll, releaseAll, unlockAudio } from './voice.js?v=20261122i';
+import { apiRaw } from '../js/api.js?v=20261122i';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -93,7 +95,7 @@ export function playStep({ op, n, step, api, onDone, onClose, toast, submit, lab
   root.focus?.();
   const setProg = () => { bar.style.setProperty('--p', Math.min(1, doneCount / graded)); prog.setAttribute('aria-valuenow', doneCount); };
   setProg();
-  function close() { if (closed) return; closed = true; document.removeEventListener('keydown', onKey); root.hidden = true; root.replaceChildren(); document.body.classList.remove('playing'); onClose?.(); }
+  function close() { if (closed) return; closed = true; releaseAll(); document.removeEventListener('keydown', onKey); root.hidden = true; root.replaceChildren(); document.body.classList.remove('playing'); onClose?.(); }
   const ctl = {
     body, foot, toast, api, step, op, n,
     // shows the feedback sheet and resolves when the student taps «Дальше»
@@ -129,7 +131,7 @@ export function playStep({ op, n, step, api, onDone, onClose, toast, submit, lab
     body.replaceChildren(el('div', { class: 'play-wait' }, el('span', { class: 'spin', 'aria-hidden': 'true' }), 'Штаб проверяет ответы…'));
     try {
       const r = submit ? await submit(answers) : await api('/api/game/finish', { method: 'POST', body: { op, step: n, answers, tz: Intl.DateTimeFormat().resolvedOptions().timeZone } });
-      closed = true; document.removeEventListener('keydown', onKey); root.hidden = true; root.replaceChildren(); document.body.classList.remove('playing');
+      closed = true; releaseAll(); document.removeEventListener('keydown', onKey); root.hidden = true; root.replaceChildren(); document.body.classList.remove('playing');
       onDone?.(r);
     } catch (e) {
       body.replaceChildren(el('div', { class: 'play-wait' }, el('p', {}, e.message), el('button', { class: 'cta cta-sm', type: 'button', onclick: finish }, 'Отправить ещё раз')));
@@ -475,20 +477,88 @@ async function typing(thread, name) {
 R.brief = (it, c) => new Promise(done => {
   const sid = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const who = c.step.client; const covered = new Set(); let asked = 0, busy = false;
+  const greetText = it.greet || 'Здравствуйте! Я Марина, у меня кофейня «Точка тепла» у центра. Подруга сказала, вы разбираетесь в соцсетях. Сделаете нам ленту поярче?';
+  const micOk = canRecord(); let vmode = localStorage.getItem('brief-voice') === '1', rec = null, sysMic = null;
   const stageEls = it.stages.map((s, i) => el('li', { class: 'stg' }, el('span', { class: 'stg-d', 'aria-hidden': 'true' }), el('span', { class: 'stg-t' }, s)));
   const thread = el('div', { class: 'thread', 'aria-live': 'polite' });
-  const input = el('textarea', { rows: 2, maxlength: 600, placeholder: 'Ваш вопрос клиенту…', 'aria-label': 'Ваш вопрос клиенту', onkeydown: e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } } });
+  const input = el('textarea', { rows: 2, maxlength: 600, placeholder: 'Ваш вопрос клиенту…', 'aria-label': 'Ваш вопрос клиенту', oninput: () => syncComposer(), onkeydown: e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } } });
   const sendB = el('button', { class: 'icon-btn send', type: 'button', 'aria-label': 'Отправить', onclick: () => send() }, ico('send'));
+  const micB = el('button', { class: 'icon-btn send mic', type: 'button', 'aria-label': 'Голосовое: удерживайте и говорите или нажмите один раз', title: 'Удерживайте и говорите' }, ico('mic'));
   const hintB = el('button', { class: 'btn-ghost btn-s', type: 'button', 'aria-pressed': 'false', 'aria-controls': 'brief-hint', onclick: () => toggleHint() }, ico('storm'), 'Подсказка');
   const endB = el('button', { class: 'cta cta-sm', type: 'button', disabled: true, onclick: () => finish() }, 'Завершить бриф');
   const hintBox = el('p', { class: 'brief-hint', id: 'brief-hint', 'aria-live': 'polite' }); const hintWrap = el('div', { class: 'brief-hint-wrap', 'aria-hidden': 'true' }, hintBox); let hintOpen = false, hintKey = '';
+  const txtT = el('button', { type: 'button', 'aria-pressed': String(!vmode), onclick: () => setMode(false) }, 'Текст');
+  const vcT = el('button', { type: 'button', 'aria-pressed': String(vmode), onclick: () => setMode(true) }, ico('mic'), 'Голос');
+  const modeT = el('div', { class: 'vm-toggle', role: 'group', 'aria-label': 'Как общаться с клиентом' }, el('span', { class: 'vm-knob', 'aria-hidden': 'true' }), txtT, vcT);
+  const composer = el('div', { class: 'composer' }, input, sendB, micB);
   c.body.append(
     el('div', { class: 'brief-top' },
       el('ol', { class: 'stages', 'aria-label': 'Этапы переговоров' }, stageEls)),
-    el('div', { class: 'chat-top' }, el('span', { class: 'ava', 'aria-hidden': 'true' }, who.name[0]), el('div', {}, el('b', {}, who.name), el('span', {}, who.role + ' · играет ИИ'))), thread, hintWrap);
-  c.foot.replaceChildren(el('div', { class: 'composer' }, input, sendB), el('div', { class: 'brief-actions' }, hintB, endB));
-  thread.append(bubble('in', it.greet || 'Здравствуйте! Я Марина, у меня кофейня «Точка тепла» у центра. Подруга сказала, вы разбираетесь в соцсетях. Сделаете нам ленту поярче?'));
+    el('div', { class: 'chat-top' }, el('span', { class: 'ava', 'aria-hidden': 'true' }, who.name[0]), el('div', { class: 'chat-who' }, el('b', {}, who.name), el('span', {}, who.role + ' · играет ИИ')), modeT), thread, hintWrap);
+  c.foot.replaceChildren(composer, el('div', { class: 'brief-actions' }, hintB, endB));
+  if (micOk) rec = attachRecorder(micB, { host: composer, onSend: sendVoice, onError: (m, info) => sys(m, info), onState: st => composer.classList.toggle('recording', st !== 'idle'),
+    tick: k => k === 'start' ? tone(880, 0.07, 0.05, 'sine', 1180) : k === 'cancel' ? tone(420, 0.14, 0.05, 'sine', 240) : k === 'send' ? tone(700, 0.08, 0.05, 'sine', 1050) : sfx.tick() });
+  modeT.classList.toggle('on', vmode); syncComposer();
+  if (vmode) greetVoice(); else thread.append(bubble('in', greetText));
   draw();
+  const leave = () => { rec?.cancel(false); stopAll(); }; addEventListener('hashchange', leave, { once: true });
+  function syncComposer() { const v = vmode && micOk && !input.value.trim(); micB.hidden = !v; sendB.hidden = v; input.placeholder = vmode && micOk ? 'Вопрос текстом или голосовое →' : 'Ваш вопрос клиенту…'; }
+  function setMode(v) {
+    if (v === vmode) return; vmode = v; localStorage.setItem('brief-voice', v ? '1' : '0'); unlockAudio(); sfx.tick();
+    txtT.setAttribute('aria-pressed', String(!v)); vcT.setAttribute('aria-pressed', String(v)); modeT.classList.toggle('on', v);
+    if (!v) { rec?.cancel(false); stopAll(); }
+    syncComposer();
+    if (v && !micOk) sys('Записывать голос этот браузер не умеет. Ответы клиента будут голосом, а вопросы пишите текстом.', true);
+    else if (v) sys('Голосовой режим: удерживайте микрофон и говорите. Клиент ответит голосовым.', true);
+  }
+  function sys(m, info) { sysMic?.remove(); const p = el('p', { class: 'sys' + (info ? ' sys-info' : '') }, m); thread.append(p); sysMic = p; scrollDown(); }
+  function scrollDown() { thread.scrollTo({ top: thread.scrollHeight, behavior: RM.matches ? 'auto' : 'smooth' }); }
+  function status(voice) {
+    const t = el('div', { class: 'bub bub-in typing' + (voice ? ' vrec' : '') }, voice ? el('span', { class: 'rs-wave', 'aria-hidden': 'true' }, el('i'), el('i'), el('i'), el('i'), el('i')) : el('span', { class: 'dots', 'aria-hidden': 'true' }, el('i'), el('i'), el('i')), el('span', { class: 'typing-t' }, `${who.name} ${voice ? 'записывает голосовое' : 'печатает'}…`));
+    thread.append(t); scrollDown(); return t;
+  }
+  function lockUI(b) { busy = b; sendB.disabled = b; micB.disabled = b; }
+  async function voiceIn(b64, text) {
+    const blob = b64Blob(b64); let peaks, dur = 0;
+    try { const buf = await decode(blob); peaks = peaksOf(buf); dur = buf.duration; } catch {}
+    const vb = voiceBubble('in', { blob, peaks, dur, text, name: who.name }); vb.root.classList.add('sending'); thread.append(vb.root); requestAnimationFrame(() => vb.root.classList.remove('sending'));
+    scrollDown(); if (sound.on) vb.play();
+    return vb;
+  }
+  async function greetVoice() {
+    lockUI(true); const t = status(true);
+    try { const r = await c.api('/api/game/tts', { method: 'POST', body: { op: c.op, step: c.n, what: 'greet' }, timeout: 30000 }); t.remove(); await voiceIn(r.audio, greetText); }
+    catch (e) { t.remove(); thread.append(bubble('in', greetText)); }
+    lockUI(false);
+  }
+  async function send() {
+    const text = input.value.trim(); if (!text || busy) return; input.value = ''; syncComposer();
+    const b = bubble('out', text); b.classList.add('sending'); thread.append(b); requestAnimationFrame(() => b.classList.remove('sending'));
+    if (!(await ask(text))) { input.value = text; syncComposer(); }
+    input.focus({ preventScroll: true });
+  }
+  async function sendVoice(r) {
+    if (busy) return; lockUI(true);
+    let buf = r.buf; try { buf ||= await decode(r.blob); } catch {}
+    const vb = voiceBubble('out', { blob: r.blob, peaks: buf ? peaksOf(buf) : null, dur: buf?.duration || r.dur, open: true }); vb.setText('Расшифровываю…', true);
+    vb.root.classList.add('sending'); thread.append(vb.root); requestAnimationFrame(() => vb.root.classList.remove('sending')); scrollDown();
+    try {
+      if (!buf) throw new Error('Не получилось прочитать запись. Попробуйте ещё раз или напишите текстом.');
+      const s = await apiRaw('/api/game/stt', await toUlaw(buf));
+      vb.setText(s.text); lockUI(false); await ask(s.text);
+    } catch (e) { vb.fail(e.message); lockUI(false); }
+  }
+  async function ask(text) {
+    if (busy) return false; lockUI(true);
+    const voice = vmode; const t = status(voice);
+    try {
+      const r = await c.api('/api/game/brief', { method: 'POST', body: { sid, text, op: c.op, step: c.n, voice }, timeout: 50000 });
+      t.remove(); const before = covered.size; r.covered.forEach(x => covered.add(x)); asked = r.asked;
+      if (voice && r.audio) await voiceIn(r.audio, r.reply); else thread.append(bubble('in', r.reply));
+      if (covered.size > before) beep(true);
+      draw(); lockUI(false); scrollDown(); return true;
+    } catch (e) { t.remove(); sys(e.message); lockUI(false); return false; }
+  }
   function stageIdx() {
     const h = id => covered.has(id);
     const map = it.stageMap || [['goal'], ['aud', 'offer'], ['metric', 'res', 'time']];
@@ -516,18 +586,5 @@ R.brief = (it, c) => new Promise(done => {
     hintOpen = force ?? !hintOpen; if (hintOpen) paintHint();
     hintWrap.classList.toggle('open', hintOpen); hintWrap.setAttribute('aria-hidden', String(!hintOpen)); hintB.setAttribute('aria-pressed', String(hintOpen));
   }
-  async function send() {
-    const text = input.value.trim(); if (!text || busy) return; busy = true; sendB.disabled = true; input.value = '';
-    const b = bubble('out', text); b.classList.add('sending'); thread.append(b); requestAnimationFrame(() => b.classList.remove('sending'));
-    const t = el('div', { class: 'bub bub-in typing' }, el('span', { class: 'dots', 'aria-hidden': 'true' }, el('i'), el('i'), el('i')), el('span', { class: 'typing-t' }, `${who.name} печатает…`));
-    thread.append(t); thread.scrollTo({ top: thread.scrollHeight, behavior: 'smooth' });
-    try {
-      const r = await c.api('/api/game/brief', { method: 'POST', body: { sid, text, op: c.op, step: c.n }, timeout: 40000 });
-      t.remove(); const before = covered.size; r.covered.forEach(x => covered.add(x)); asked = r.asked;
-      thread.append(bubble('in', r.reply)); if (covered.size > before) beep(true);
-      draw();
-    } catch (e) { t.remove(); thread.append(el('p', { class: 'sys' }, e.message)); input.value = text; }
-    busy = false; sendB.disabled = false; thread.scrollTo({ top: thread.scrollHeight, behavior: 'smooth' }); input.focus({ preventScroll: true });
-  }
-  function finish() { c.answer({ sid }); done(); }
+  function finish() { leave(); removeEventListener('hashchange', leave); c.answer({ sid }); done(); }
 });

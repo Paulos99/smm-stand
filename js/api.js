@@ -53,3 +53,23 @@ export async function apiBlob(path, { timeout = 30000 } = {}) {
   }
   throw last || new Error('Нет связи с сервером');
 }
+// raw bytes to the API (voice messages: 16 kHz μ-law); JSON answer, same auth headers and fallback order as api()
+export async function apiRaw(path, bytes, { timeout = 45000 } = {}) {
+  const headers = { 'content-type': 'application/octet-stream' };
+  if (store.token) headers['x-stand-token'] = store.token;
+  const tester = store.tester || store.user?.name || '';
+  if (tester) headers['x-stand-tester'] = encodeURIComponent(tester);
+  const order = [preferred, ...API_BASES.keys()].filter((v, i, a) => a.indexOf(v) === i);
+  let last;
+  for (const idx of order) {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), timeout);
+    try {
+      const r = await fetch(API_BASES[idx] + path, { method: 'POST', headers, body: bytes, signal: c.signal });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { store.clear(); location.hash = '#/login'; throw Object.assign(new Error('Сессия закончилась, войдите снова'), { fatal: true }); }
+      if (!r.ok) throw Object.assign(new Error(j.error || 'Ошибка ' + r.status), { fatal: true });
+      preferred = idx; return j;
+    } catch (e) { last = e.name === 'AbortError' ? new Error('Сервер долго не отвечает, попробуйте ещё раз') : e; if (e.fatal) throw e; } finally { clearTimeout(t); }
+  }
+  throw last || new Error('Нет связи с сервером');
+}
