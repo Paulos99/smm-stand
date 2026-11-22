@@ -1,11 +1,11 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261122d';
-import { api, store } from '../js/api.js?v=20261122d';
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122d';
-import { openBriefing } from './theory.js?v=20261122d';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122d';
-import { createMissions, photoEditor } from './missions.js?v=20261122d';
-import { createTeacher } from './teacher.js?v=20261122d';
-import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122d';
+import { MECH, OPS, SHOP } from './data.js?v=20261122e';
+import { api, store } from '../js/api.js?v=20261122e';
+import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122e';
+import { openBriefing } from './theory.js?v=20261122e';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122e';
+import { createMissions, photoEditor } from './missions.js?v=20261122e';
+import { createTeacher } from './teacher.js?v=20261122e';
+import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122e';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -20,7 +20,9 @@ let S = null; // server state
 // steps come from the API (answers are not in the public repo); refetched after progress so newly unlocked steps arrive
 async function content(op, fresh) { if (!CONTENT[op] || fresh) CONTENT[op] = (await api('/api/game/op?op=' + op)).steps; return CONTENT[op]; }
 const starsOf = (op) => S?.stars?.[op] || Array(10).fill(null);
-const opState = (n) => (S.open.includes(n) ? (n < Math.max(...S.open) ? 'done' : 'current') : 'locked');
+let FIN = null; // during an operation finale the map shows the closing operation open and the next one still locked
+const opState = (n) => { if (FIN) { if (n === FIN.op) return 'done'; if (n > FIN.op) return 'locked'; } return S.open.includes(n) ? (n < Math.max(...S.open) ? 'done' : 'current') : 'locked'; };
+const opComplete = (n) => { const st = starsOf(n); return st.length === 10 && st.every((k) => k === 3); };
 const curOp = () => Math.max(...S.open);
 function current(op) {
   const st = starsOf(op);
@@ -86,7 +88,8 @@ function missionHtml(op) {
       <span class="cta-main">${fresh ? 'Начать миссию' : 'Продолжить миссию'} ${ico('play', 'fill')}</span>
       <span class="cta-sub">Шаг ${ci + 1} из 10 · ${MECH[step.m]}: ${esc(step.t)}</span>
     </button>` : `<p class="soon">${ico('lock')} Штаб готовит эту операцию. Откроем в ближайшем обновлении.</p>`}
-    <p class="mission-rule">Следующая операция откроется, когда у всех 10 шагов будет по 3 звезды.${retry.length ? ` Шаг ${retry.join(', ')} стоит перепройти.` : ''}</p></div>`;
+    <p class="mission-rule">Следующая операция откроется, когда у всех 10 шагов будет по 3 звезды.${retry.length ? ` Шаг ${retry.join(', ')} стоит перепройти.` : ''}</p>
+    ${opComplete(op.n) ? `<button class="btn btn-ghost btn-s fin-again-btn" type="button" data-finale="${op.n}">${ico('star', 'st on')} Посмотреть финал</button>` : ''}</div>`;
 }
 function strip(op) {
   const st = starsOf(op.n);
@@ -128,8 +131,9 @@ function renderOps() {
     const s = opState(op.n), got = sum(starsOf(op.n));
     if (s === 'current') return `<li class="op op-current is-open" data-op="${op.n}">${missionHtml(op)}<div class="op-path">${path(op)}</div></li>`;
     const badge = s === 'done' ? ico('check') : ico('lock');
-    return `<li class="op op-${s}${open.has(String(op.n)) ? ' is-open' : ''}" data-op="${op.n}">
-      <button class="op-h" type="button" aria-expanded="${open.has(String(op.n))}" ${s === 'locked' ? 'disabled' : `data-toggle="${op.n}"`}>
+    const isOpen = open.has(String(op.n)) || FIN?.op === op.n;
+    return `<li class="op op-${s}${isOpen ? ' is-open' : ''}" data-op="${op.n}">
+      <button class="op-h" type="button" aria-expanded="${isOpen}" ${s === 'locked' ? 'disabled' : `data-toggle="${op.n}"`}>
         <span class="op-n">${badge}</span>
         <span class="op-body"><span class="op-t">${esc(op.title)}</span>
           <span class="op-sub">${s === 'done' ? `Допуск получен · <span class="tn">${got}/30</span>` : `Откроет: ${esc(op.reward)}`}</span>
@@ -137,7 +141,7 @@ function renderOps() {
         </span>
         ${s === 'done' ? ico('chev', 'op-chev') : ''}
       </button>
-      ${s === 'locked' ? '' : `<div class="op-path">${path(op)}</div>`}
+      ${s === 'locked' ? '' : `<div class="op-path">${path(op)}${s === 'done' && opComplete(op.n) && !FIN ? `<div class="fin-again"><button class="btn btn-ghost btn-s" type="button" data-finale="${op.n}">${ico('star', 'st on')} Посмотреть финал</button></div>` : ''}</div>`}
     </li>`;
   }).join('');
   requestAnimationFrame(drawLinks);
@@ -296,12 +300,13 @@ function reward(o, s, step, r) {
     ${r.rankUp ? `<div class="rw-rank promo">${badge(Math.max(0, LEAGUES.indexOf(r.rankUp)), 64, 'pop')}<span>Новая лига: <b>${esc(r.rankUp)}</b></span></div>` : ''}
     ${r.newBadges?.length ? `<ul class="rw-badges">${r.newBadges.map((b) => `<li><img src="../assets/stickers/${b.st}.webp" alt="" width="96" height="96"><b>${esc(b.t)}</b><span>${esc(b.d)}</span></li>`).join('')}</ul>` : ''}
     <div class="rw-a">
-      ${next ? `<button class="cta cta-sm" type="button" data-play="${o}-${next}">Следующий шаг</button>` : nextOp ? `<button class="cta cta-sm" type="button" data-play="${o + 1}-1">Операция ${o + 1}</button>` : ''}
+      ${r.opDone ? `<button class="cta cta-sm" type="button" data-close-reward>${o < 6 ? 'Закрыть операцию' : 'Финал курса'}</button>` : next ? `<button class="cta cta-sm" type="button" data-play="${o}-${next}">Следующий шаг</button>` : nextOp ? `<button class="cta cta-sm" type="button" data-play="${o + 1}-1">Операция ${o + 1}</button>` : ''}
       ${r.stars < 3 ? `<button class="${next ? 'btn btn-ghost' : 'cta cta-sm'}" type="button" data-play="${o}-${s}">Перепройти</button>` : ''}
       <button class="btn btn-ghost" type="button" data-close-reward>На карту</button>
     </div>
     ${fbForm(o, s, o ? `${o}.${s} ${MECH[step.m]}: ${step.t}` : 'Тренировка дня')}
   </div>`;
+  if (o && r.opDone) pendingFinale = o;
   box.hidden = false; document.body.classList.add('playing');
   const rw = box.firstElementChild; rw.focus({ preventScroll: true });
   const n = box.querySelector('.rw-xp-n'), to = r.gain;
@@ -322,7 +327,119 @@ function reward(o, s, step, r) {
   rw.addEventListener('pointerdown', () => { skip = true; box.classList.add('skip'); timers.forEach(clearTimeout); }, { once: true });
 }
 const STAR0 = 220, STAR_GAP = 280;
-function closeReward() { const b = $('#reward'); b.hidden = true; b.className = ''; b.innerHTML = ''; document.body.classList.remove('playing'); requestAnimationFrame(drawLinks); }
+function closeReward() { const b = $('#reward'); const was = !b.hidden; b.hidden = true; b.className = ''; b.innerHTML = ''; document.body.classList.remove('playing'); requestAnimationFrame(drawLinks); if (was && pendingFinale) { const o = pendingFinale; pendingFinale = 0; setTimeout(() => finale(o, { auto: true }), 250); } }
+let pendingFinale = 0;
+// ---------- operation finale: camera walks the path, stars light up, stamp, next operation unlocks ----------
+let finRunning = false;
+function checkFinale() { // auto-play once for operations finished but not celebrated yet (tracked on the server)
+  if (!S || finRunning || !$('#play').hidden || !$('#reward').hidden || $('#sheet').open) return;
+  const todo = [1, 2, 3, 4, 5, 6].filter((n) => opComplete(n) && !(S.celebrated || []).includes(n));
+  if (todo.length) finale(Math.max(...todo), { auto: true, mark: todo });
+}
+function thud() { // low stamp hit: short sine drop + a soft click, behind the mute toggle
+  if (!sound.on) return;
+  try {
+    const a = thud.ctx ||= new (window.AudioContext || window.webkitAudioContext)(); if (a.state === 'suspended') a.resume();
+    const t = a.currentTime + 0.005, g = a.createGain(), o = a.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.22);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.32, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + 0.32);
+  } catch {}
+}
+function spark(node, n = 8) {
+  const s = document.createElement('i'); s.className = 'fin-spark'; s.setAttribute('aria-hidden', 'true');
+  s.innerHTML = Array.from({ length: n }, (_, k) => `<b style="--a:${k * (360 / n) + (k % 2 ? 12 : 0)}deg;--r:${k % 2 ? 26 : 38}px"></b>`).join('');
+  node.append(s); setTimeout(() => s.remove(), 900);
+}
+function finale(op, { auto = false, mark } = {}) {
+  if (finRunning || !S || !opComplete(op)) return;
+  finRunning = true;
+  if (auto) api('/api/game/celebrated', { method: 'POST', body: { ops: mark || [op] } }).then((r) => { S.celebrated = r.celebrated; }).catch(() => {});
+  const reduce = RMQ.matches, last = op >= OPS.length, meta = OPS[op - 1];
+  if ($('.app').dataset.view !== 'map') setView('map');
+  FIN = { op }; renderOps(); drawLinks();
+  const li = $(`#ops .op[data-op="${op}"]`); const pathEl = li?.querySelector('.path');
+  if (!li || !pathEl) { FIN = null; finRunning = false; renderOps(); return; }
+  const nodes = [...pathEl.querySelectorAll(':scope > .node-wrap')];
+  pathEl.classList.add('fin-prep'); li.classList.add('fin-li');
+  document.body.classList.add('fin-on');
+  const veil = document.createElement('div'); veil.className = 'fin-veil';
+  veil.innerHTML = `<span class="fin-skip">${reduce ? '' : 'Нажмите, чтобы пропустить'}</span>`; document.body.append(veil);
+  const bonus = 100, badgeOn = (S.badges || []).find((b) => b.id === 'op' + op && b.on);
+  const since = S.briefAt?.[op], days = since ? Math.max(1, Math.round((Date.now() - since) / 864e5)) : 0;
+  const timers = []; let done = false;
+  const at = (ms, fn) => timers.push(setTimeout(() => { if (!done) fn(); }, ms));
+  const camera = (el, block = 0.42) => { if (!el) return; const r = el.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, r.top + scrollY - innerHeight * block + r.height / 2), behavior: reduce ? 'auto' : 'smooth' }); };
+  camera(nodes[0], 0.35);
+  // 1) the walk: briefing and every step, stars cascade with a rising chime
+  const NOTES = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77, 1046.5, 1174.66, 1318.51, 1567.98];
+  let t = reduce ? 150 : 650; const STEP = reduce ? 0 : 280;
+  nodes.forEach((w, i) => {
+    at(t, () => {
+      if (!reduce && (i % 2 === 0 || i === nodes.length - 1)) camera(w);
+      w.classList.add('fin-hit'); if (!reduce) spark(w);
+      if (!reduce || i === 0) chime(reduce ? [783.99, 1046.5] : [NOTES[Math.min(i, NOTES.length - 1)]], 0.05, 0.05);
+    });
+    t += STEP;
+  });
+  // 2) the stamp lands on the operation card, a thud and a tiny shake, then the old section folds away
+  t += reduce ? 300 : 350;
+  const stampAt = t;
+  at(stampAt - 250, () => camera(li.querySelector('.op-h'), 0.3));
+  at(stampAt, () => {
+    const st = document.createElement('div'); st.className = 'fin-stamp'; st.setAttribute('role', 'img'); st.setAttribute('aria-label', 'Операция завершена');
+    st.innerHTML = `<span>Операция ${op}</span><b>завершена</b><small>30/30 · ШТАБ</small>`; li.querySelector('.op-h').append(st);
+    li.classList.add('fin-stamped');
+  });
+  at(stampAt + (reduce ? 0 : 230), () => { thud(); if (!reduce) { document.querySelector('.view-map')?.classList.add('fin-shake'); setTimeout(() => document.querySelector('.view-map')?.classList.remove('fin-shake'), 420); } });
+  const sum = document.createElement('aside'); sum.className = 'fin-sum'; sum.setAttribute('role', 'status');
+  sum.innerHTML = `<p class="fin-k">${last ? 'Финал курса' : `Операция ${op} закрыта`}</p><h2>${esc(meta.title)}</h2>
+    <ul class="fin-stats"><li><b class="tn">30/30</b><span>${ico('star', 'st on')} звёзд</span></li><li><b class="tn">+${bonus}</b><span>опыта за операцию</span></li>${days ? `<li><b class="tn">${days}</b><span>${days % 10 === 1 && days % 100 !== 11 ? 'день' : days % 10 >= 2 && days % 10 <= 4 && (days % 100 < 12 || days % 100 > 14) ? 'дня' : 'дней'} в деле</span></li>` : '<li><b class="tn">10/10</b><span>шагов</span></li>'}</ul>
+    ${badgeOn ? `<p class="fin-badge"><img src="../assets/stickers/${badgeOn.st}.webp" alt="" width="56" height="56"><span>Знак «${esc(badgeOn.t)}»</span></p>` : ''}`;
+  at(stampAt + (reduce ? 200 : 800), () => {
+    if (!reduce) { li.classList.add('fin-fold'); } li.classList.add('fin-dim');
+    document.body.append(sum); requestAnimationFrame(() => sum.classList.add('in')); sfx.badge();
+  });
+  // 3) the next operation unlocks (or the whole course is done)
+  const unlockAt = stampAt + (reduce ? 1300 : 2200);
+  if (!last) {
+    const li2 = $(`#ops .op[data-op="${op + 1}"]`);
+    at(unlockAt - 300, () => { li.classList.remove('is-open'); sum.classList.remove('in'); camera(li2, 0.4); });
+    at(unlockAt, () => {
+      const n2 = li2?.querySelector('.op-n'); if (n2) { n2.innerHTML = `<span class="fin-lock" aria-hidden="true"><i class="l">${ico('lock')}</i><i class="r">${ico('lock')}</i></span>`; li2.classList.add('fin-unlock'); }
+      setTimeout(() => sfx.unlock(), reduce ? 0 : 260);
+    });
+    at(unlockAt + (reduce ? 300 : 800), () => {
+      FIN = null; renderOps();
+      const nl = $(`#ops .op[data-op="${op + 1}"]`); nl?.classList.add('fin-rise');
+      requestAnimationFrame(() => { drawLinks(); nl?.querySelectorAll('.links path').forEach((p, k) => { const L = p.getTotalLength?.() || 0; if (!L || reduce) return; p.style.strokeDasharray = L; p.style.strokeDashoffset = L; p.style.transition = `stroke-dashoffset .5s ${0.25 + k * 0.06}s ease-out`; requestAnimationFrame(() => { p.style.strokeDashoffset = '0'; }); }); });
+      camera(nl?.querySelector('.cta') || nl, 0.45);
+      chime([659.25, 783.99, 987.77, 1318.51], 0.07, 0.07);
+    });
+    at(unlockAt + (reduce ? 1600 : 2400), finish);
+  } else {
+    at(unlockAt - 200, () => {
+      sum.classList.add('fin-course'); sum.querySelector('.fin-k').textContent = 'Курс пройден';
+      sum.insertAdjacentHTML('afterbegin', '<img class="fin-course-st" src="../assets/stickers/mission-best.webp" alt="" width="120" height="120">');
+      sum.querySelector('h2').textContent = 'Все 6 операций закрыты. Вы — агент СММ';
+      chime([523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98, 2093], 0.08, 0.08); if (!reduce) spark(sum, 12);
+    });
+    at(unlockAt + (reduce ? 1800 : 3600), finish);
+  }
+  function finish() {
+    if (done) return; done = true; timers.forEach(clearTimeout); document.removeEventListener('keydown', onKey);
+    veil.remove(); document.body.classList.remove('fin-on');
+    sum.classList.remove('in'); setTimeout(() => sum.remove(), 400);
+    const wasFin = !!FIN; FIN = null; finRunning = false;
+    if (wasFin || !last) { renderOps(); drawLinks(); }
+    const target = last ? $(`#ops .op[data-op="${op}"]`) : $(`#ops .op[data-op="${op + 1}"]`);
+    if (wasFin && target) camera(target.querySelector('.cta') || target, 0.45);
+  }
+  veil.addEventListener('pointerdown', finish, { once: true });
+  const onKey = (e) => { if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); finish(); } };
+  document.addEventListener('keydown', onKey);
+}
+
 
 // ---------- views ----------
 function setView(v) {
@@ -363,7 +480,7 @@ function notify() {
   if (bt.rankUp) setTimeout(() => { toast(`Новая лига: «${bt.rankUp}»!`); sfx.badge(); }, 400);
 }
 setInterval(async () => { // light refresh so challenges and results arrive without reload
-  if (document.hidden || !S || !$('#play').hidden || !$('#reward').hidden || $('#sheet').open) return;
+  if (document.hidden || !S || finRunning || !$('#play').hidden || !$('#reward').hidden || $('#sheet').open) return;
   try { const st = await api('/api/game/state?tz=' + encodeURIComponent(TZ)); const changed = st.xp !== S.xp || JSON.stringify(st.battles) !== JSON.stringify(S.battles); S = st; if (changed) { renderAll(); notify(); if ($('.app').dataset.view === 'team') team.render(); } } catch {}
 }, 60000);
 let introDone = false;
@@ -441,7 +558,7 @@ async function boot() {
   if (!store.token) return entry();
   $('.app').hidden = false; $('#entry').hidden = true;
   if (!S) $('#ops').innerHTML = '<li class="loading">Связываемся со штабом…</li>';
-  try { S = await api('/api/game/state?tz=' + encodeURIComponent(TZ), { timeout: 30000 }); renderAll(); notify(); mis.card(); setTimeout(() => showInstallBanner(toast), 4000); }
+  try { S = await api('/api/game/state?tz=' + encodeURIComponent(TZ), { timeout: 30000 }); renderAll(); notify(); mis.card(); setTimeout(() => showInstallBanner(toast), 4000); setTimeout(checkFinale, 900); }
   catch (e) { if (!store.token) return entry('Сессия закончилась, войдите снова'); $('#ops').innerHTML = `<li class="loading">${esc(e.message)} <button class="btn btn-ghost btn-s" type="button" data-retry>Повторить</button></li>`; }
 }
 
@@ -454,8 +571,9 @@ document.addEventListener('click', (e) => {
   if ('photo' in b.dataset) return photoEditor({ api, toast, onDone: (ph) => { S.photo = ph; S.photoHidden = false; renderSide(); } });
   if ('photoRm' in b.dataset) { if (!confirm('Убрать фото?')) return; return api('/api/game/photo', { method: 'POST', body: { remove: true } }).then(() => { S.photo = ''; renderSide(); toast('Фото убрано'); }).catch((er) => toast(er.message)); }
   if (b.closest('#view-teach')) { teacher.onClick(b); if (!b.dataset.go) return; }
-  if (b.dataset.play) { closeReward(); return play(b.dataset.play); }
-  if (b.dataset.brief) { closeReward(); return briefing(+b.dataset.brief); }
+  if (b.dataset.finale) { pendingFinale = 0; closeReward(); return finale(+b.dataset.finale); }
+  if (b.dataset.play) { pendingFinale = 0; closeReward(); return play(b.dataset.play); }
+  if (b.dataset.brief) { pendingFinale = 0; closeReward(); return briefing(+b.dataset.brief); }
   if (b.dataset.step) return openSheet(b.dataset.step);
   if (b.dataset.buy) return buy(b);
   if (b.dataset.toggle) { const li = b.closest('.op'); li.classList.toggle('is-open'); sfx.tick(); b.setAttribute('aria-expanded', li.classList.contains('is-open')); return requestAnimationFrame(drawLinks); }

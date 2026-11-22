@@ -1254,3 +1254,66 @@ html.deck-open,html.deck-open body{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.th-deck,.deck-track,.deck-prog i,.th-deck.deck-fs{animation:none;transition:none}}
 .deck-slide img{position:absolute;inset:0}
 .deck-fs .deck-stage:focus-visible{box-shadow:none}
+
+/* ---------- operation finale ---------- */
+.fin-again{display:flex;justify-content:center;padding:6px 0 14px}
+.fin-again-btn{margin-top:10px}
+.fin-again .st,.fin-again-btn .st{width:16px;height:16px}
+body.fin-on{overscroll-behavior:none}
+.fin-veil{position:fixed;inset:0;z-index:60;cursor:pointer;display:flex;align-items:flex-start;justify-content:center;padding-top:calc(env(safe-area-inset-top) + 82px);-webkit-tap-highlight-color:transparent}
+.fin-skip{font-size:12px;color:var(--muted);background:color-mix(in srgb,var(--panel) 86%,transparent);border:1px solid var(--line);padding:6px 12px;border-radius:999px;animation:fin-hint 3.4s .6s both}
+@keyframes fin-hint{0%{opacity:0}12%,80%{opacity:1}100%{opacity:0}}
+.fin-skip:empty{display:none}
+.fin-prep .node-wrap .st.on{opacity:.18;transform:scale(.6)}
+.fin-prep .node-wrap.fin-hit .st.on{opacity:1;transform:none;animation:starpop .5s var(--spring) both}
+.fin-prep .node-wrap.fin-hit .st.on:nth-child(2){animation-delay:.07s}
+.fin-prep .node-wrap.fin-hit .st.on:nth-child(3){animation-delay:.14s}
+.fin-prep .node-wrap.fin-hit .node{animation:fin-node .5s var(--spring) both}
+@keyframes fin-node{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+.fin-spark{position:absolute;left:50%;top:32px;width:0;height:0;pointer-events:none;z-index:3}
+.fin-spark b{position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;background:var(--star);opacity:0;animation:fin-spark .7s cubic-bezier(.15,.7,.3,1) forwards;--a:0deg;--r:30px}
+@keyframes fin-spark{0%{opacity:1;transform:rotate(var(--a)) translateY(0) scale(1)}100%{opacity:0;transform:rotate(var(--a)) translateY(calc(var(--r) * -1)) scale(.3)}}
+.fin-li .op-h{position:relative;overflow:visible}
+.fin-stamp{position:absolute;right:12px;top:50%;z-index:4;display:grid;justify-items:center;gap:1px;padding:7px 12px 6px;border:3px solid var(--red,#c33);border-radius:10px;color:var(--red,#c33);font:800 11px/1.05 var(--fh);text-transform:uppercase;letter-spacing:.06em;background:color-mix(in srgb,var(--panel) 70%,transparent);transform:translateY(-50%) rotate(-9deg);animation:fin-stamp .42s cubic-bezier(.3,1.4,.5,1) both;pointer-events:none;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--red,#c33) 40%,transparent)}
+.fin-stamp b{font-size:17px;letter-spacing:.04em}
+.fin-stamp small{font-size:9px;opacity:.8;letter-spacing:.14em}
+@keyframes fin-stamp{0%{opacity:0;transform:translateY(-50%) rotate(-24deg) scale(2.4)}55%{opacity:1;transform:translateY(-50%) rotate(-7deg) scale(.92)}100%{opacity:1;transform:translateY(-50%) rotate(-9deg) scale(1)}}
+.fin-shake{animation:fin-shake .36s linear}
+@keyframes fin-shake{0%,100%{transform:none}20%{transform:translate(-3px,2px)}40%{transform:translate(3px,-2px)}60%{transform:translate(-2px,1px)}80%{transform:translate(1px,-1px)}}
+.fin-fold .op-path{transform-origin:top center;animation:fin-fold .7s var(--spring) .1s forwards}
+@keyframes fin-fold{to{transform:scaleY(.2);opacity:0}}
+.fin-dim .op-h>:not(.fin-stamp){opacity:.55;transition:opacity .5s}
+.fin-sum{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:61;width:min(420px,calc(100vw - 24px));padding:16px 18px 18px;border-radius:20px;background:var(--panel);border:1px solid var(--line);box-shadow:0 18px 50px rgb(0 0 0/.35);transform:translate(-50%,24px);opacity:0;transition:transform .5s var(--spring),opacity .35s;pointer-events:none;text-align:center}
+.fin-sum.in{transform:translate(-50%,0);opacity:1}
+.fin-sum .fin-k{margin:0;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--star)}
+.fin-sum h2{margin:4px 0 12px;font:700 18px/1.25 var(--fh)}
+.fin-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0;padding:0;list-style:none}
+.fin-stats li{display:grid;gap:2px;padding:8px 4px;border-radius:12px;background:var(--panel2)}
+.fin-stats b{font:800 20px/1 var(--fh)}
+.fin-stats span{display:inline-flex;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--muted)}
+.fin-stats .st{width:13px;height:13px}
+.fin-badge{display:flex;align-items:center;justify-content:center;gap:10px;margin:12px 0 0;font-weight:600;font-size:14px}
+.fin-badge img{animation:starpop .6s var(--spring) .3s both}
+.fin-course-st{display:block;margin:-60px auto 4px;animation:starpop .7s var(--spring) both}
+.fin-course{padding-top:20px}
+.fin-unlock .op-n{position:relative;overflow:visible}
+.fin-lock{position:absolute;inset:0;display:block}
+.fin-lock i{position:absolute;inset:0;display:grid;place-items:center}
+.fin-lock .l{clip-path:inset(0 50% 0 0);animation:fin-lk-l .6s cubic-bezier(.3,.6,.4,1) .2s forwards}
+.fin-lock .r{clip-path:inset(0 0 0 50%);animation:fin-lk-r .6s cubic-bezier(.3,.6,.4,1) .2s forwards}
+.fin-unlock .op-n{animation:fin-node .35s var(--spring) both}
+@keyframes fin-lk-l{0%{transform:none}25%{transform:translateY(-3px) rotate(-4deg)}100%{transform:translate(-22px,16px) rotate(-40deg);opacity:0}}
+@keyframes fin-lk-r{0%{transform:none}25%{transform:translateY(-3px) rotate(4deg)}100%{transform:translate(22px,16px) rotate(40deg);opacity:0}}
+.fin-rise{animation:fin-rise .8s var(--spring) both;position:relative}
+.fin-rise::after{content:"";position:absolute;inset:-2px;border-radius:var(--r);pointer-events:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--star) 70%,transparent),0 0 36px color-mix(in srgb,var(--star) 45%,transparent);opacity:0;animation:fin-glow 2.4s ease-out .3s}
+@keyframes fin-rise{0%{transform:translateY(26px);opacity:0}100%{transform:none;opacity:1}}
+@keyframes fin-glow{0%{opacity:0}25%{opacity:1}100%{opacity:0}}
+@keyframes fin-fade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .fin-prep .node-wrap .st.on{opacity:1;transform:none}
+  .fin-prep .node-wrap.fin-hit .st.on,.fin-prep .node-wrap.fin-hit .node,.fin-badge img,.fin-course-st,.fin-unlock .op-n{animation:none}
+  .fin-stamp{animation:fin-fade .3s both;transform:translateY(-50%) rotate(-9deg)}
+  .fin-lock .l,.fin-lock .r{animation:fin-fade .3s reverse forwards}
+  .fin-rise{animation:fin-fade .3s both}.fin-rise::after{animation:none}
+  .fin-sum{transition:opacity .3s;transform:translate(-50%,0)}
+}
