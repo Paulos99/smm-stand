@@ -1456,8 +1456,8 @@ body.fz-on{overflow:hidden}
 .avf>.ava{width:100%!important;height:100%!important;box-shadow:none!important}
 .avf-ring{position:absolute;inset:-12%;width:124%;height:124%;pointer-events:none;overflow:visible;filter:drop-shadow(0 1px 1.5px rgba(10,16,28,.35))}
 .avf-tab{position:absolute;left:50%;bottom:-11%;transform:translateX(-50%) rotate(-3deg);white-space:nowrap;padding:.28em .62em .24em;border-radius:6px;
-  font:800 max(8px,calc(var(--s)*.105))/1 var(--fh);letter-spacing:.06em;text-transform:uppercase;color:#ffe9a3;
-  background:linear-gradient(180deg,#24985f,#145a3b);border:1.5px solid #132033;box-shadow:0 0 0 2px #fff,0 2px 4px rgba(10,16,28,.35)}
+  font:800 max(8px,calc(var(--s)*.105))/1 var(--fh);letter-spacing:.06em;text-transform:uppercase;color:#fff;
+  background:linear-gradient(180deg,#f0353e,#a10f19);border:1.5px solid #1a0b0d;box-shadow:0 0 0 2px #fff,0 2px 4px rgba(10,16,28,.35)}
 .ag-ava .avf .ava,.pf-top .avf .ava{box-shadow:none}
 .lb-ava .avf{width:40px;height:40px}
 .ag-frame{display:flex;align-items:center;gap:12px;margin:12px 0 4px;padding:10px 12px;min-height:44px;border-radius:14px;background:var(--panel2,rgba(127,127,127,.08));cursor:pointer}
@@ -1475,3 +1475,17 @@ body.fz-on{overflow:hidden}
 .pf-top:has(.avf) .pf-lg{top:-10px;bottom:auto;right:-20px}
 .vs-side .avf+.vs-lg{position:relative;z-index:2;margin:-108px 0 68px 84px}
 .vs-side .avf{margin-bottom:10px}
+
+/* red «Агент штаба» frame (t208u): glint sweeping round the ring + soft pulsing glow; static under reduced motion */
+.avf::before{content:"";position:absolute;inset:-16%;z-index:-1;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle closest-side,rgba(240,40,50,.55) 62%,rgba(240,40,50,.22) 80%,transparent 100%);opacity:.55;animation:avf-pulse 2.4s ease-in-out infinite}
+.avf-glint{position:absolute;inset:-12%;z-index:2;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from 0deg,transparent 0 62%,rgba(255,200,200,.15) 72%,rgba(255,255,255,.95) 83%,rgba(255,170,170,.25) 88%,transparent 92%);
+  -webkit-mask:radial-gradient(circle closest-side,transparent 76%,#000 79%,#000 88%,transparent 91%);mask:radial-gradient(circle closest-side,transparent 76%,#000 79%,#000 88%,transparent 91%);
+  animation:avf-spin 2.6s linear infinite;will-change:transform}
+.avf-tab{z-index:3}
+.avf-s::before{animation-duration:3.2s}
+.avf-s .avf-glint{animation-duration:3.6s;will-change:auto}
+@keyframes avf-spin{to{transform:rotate(1turn)}}
+@keyframes avf-pulse{0%,100%{opacity:.4;transform:scale(.94)}50%{opacity:1;transform:scale(1.06)}}
+@media (prefers-reduced-motion:reduce){.avf::before{animation:none;opacity:.8;transform:none}.avf-glint{display:none}}

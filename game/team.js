@@ -1,6 +1,6 @@
 // Team: leagues, leaderboards (week / all time / my league), partner battles. All checks are on the server; only display names come here.
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122g';
-import { img } from './missions.js?v=20261122g';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122h';
+import { img } from './missions.js?v=20261122h';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = (n) => Number(n || 0).toLocaleString('ru-RU');
@@ -23,22 +23,19 @@ export function badge(i = 0, size = 40, cls = '') {
 }
 const initials = (n) => esc(String(n || '?').trim().slice(0, 1).toUpperCase());
 const avatarRaw = (p, size = 40) => p?.photo ? `<img class="ava" src="${esc(img(p.photo))}" alt="" width="${size}" height="${size}" style="width:${size}px;height:${size}px" loading="lazy">` : `<span class="ava ava-i" style="--s:${size}px" aria-hidden="true">${initials(p?.name)}</span>`;
-// «Агент штаба» frame (bought in the shop): sticker-style gold ring with a green inner line, a star seal,
-// and on big avatars a small «АГЕНТ ШТАБА» tab. Drawn as SVG over the avatar so it stays crisp at 32 px and at 96 px.
+// «Агент штаба» frame (bought in the shop): red sticker ring (white die-cut outline, dark contour, crimson gradient),
+// a glint sweeping around it and a soft pulsing glow (CSS, transform/opacity only); big avatars also get a red «АГЕНТ ШТАБА» tab.
 let fuid = 0;
 const frameSvg = (size) => { const id = 'af' + (++fuid); const big = size >= 64;
   return `<svg class="avf-ring" viewBox="-12 -12 124 124" aria-hidden="true"><defs>
-    <linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4c2"/><stop offset=".35" stop-color="#f6c94a"/><stop offset=".7" stop-color="#c9921a"/><stop offset="1" stop-color="#f3d36b"/></linearGradient>
-    <linearGradient id="${id}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2fae74"/><stop offset="1" stop-color="#16603f"/></linearGradient></defs>
-    <circle cx="50" cy="50" r="52" fill="none" stroke="#fff" stroke-width="${big ? 9 : 12}"/>
-    <circle cx="50" cy="50" r="52" fill="none" stroke="#132033" stroke-width="${big ? 6 : 8}"/>
-    <circle cx="50" cy="50" r="52" fill="none" stroke="url(#${id})" stroke-width="${big ? 4.2 : 5.6}"/>
-    <circle cx="50" cy="50" r="${big ? 48.2 : 47.4}" fill="none" stroke="#1f8a5b" stroke-width="${big ? 1.8 : 2.4}"/>
-    ${big ? [45, 135, 225, 315].map(a => { const r = 52, x = 50 + r * Math.cos(a * Math.PI / 180), y = 50 + r * Math.sin(a * Math.PI / 180); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="#fff8dc"/>`; }).join('') : ''}
-    <g transform="translate(${big ? 50 : 86} ${big ? -2 : 14})"><circle r="${big ? 13 : 17}" fill="#fff"/><circle r="${big ? 11 : 14.5}" fill="#132033"/><circle r="${big ? 9.2 : 12.2}" fill="url(#${id}s)"/>
-      <path transform="scale(${big ? .5 : .66})" d="M0-14l4.1 8.4 9.2 1.3-6.7 6.5 1.6 9.2L0 7.1l-8.2 4.3 1.6-9.2-6.7-6.5 9.2-1.3z" fill="url(#${id})" stroke="#132033" stroke-width="1.6" stroke-linejoin="round"/></g>
-  </svg>${big ? '<span class="avf-tab">Агент штаба</span>' : ''}`; };
-export const avatar = (p, size = 40) => p?.frame === 'agent' ? `<span class="avf" style="--s:${size}px">${avatarRaw(p, size)}${frameSvg(size)}</span>` : avatarRaw(p, size);
+    <linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a80"/><stop offset=".3" stop-color="#f0313b"/><stop offset=".7" stop-color="#a50d18"/><stop offset="1" stop-color="#e8343c"/></linearGradient></defs>
+    <circle cx="50" cy="50" r="52" fill="none" stroke="#fff" stroke-width="${big ? 10 : 13}"/>
+    <circle cx="50" cy="50" r="52" fill="none" stroke="#1a0b0d" stroke-width="${big ? 7 : 9}"/>
+    <circle cx="50" cy="50" r="52" fill="none" stroke="url(#${id})" stroke-width="${big ? 5.2 : 6.6}"/>
+    <circle cx="50" cy="50" r="${big ? 47.6 : 46.8}" fill="none" stroke="#ff6b6b" stroke-opacity=".55" stroke-width="${big ? 1.4 : 1.8}"/>
+    ${big ? [45, 135, 225, 315].map(a => { const x = 50 + 52 * Math.cos(a * Math.PI / 180), y = 50 + 52 * Math.sin(a * Math.PI / 180); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.5" fill="#ffd9d6"/>`; }).join('') : ''}
+  </svg><span class="avf-glint" aria-hidden="true"></span>${big ? '<span class="avf-tab">Агент штаба</span>' : ''}`; };
+export const avatar = (p, size = 40) => p?.frame === 'agent' ? `<span class="avf${size < 64 ? ' avf-s' : ''}" style="--s:${size}px">${avatarRaw(p, size)}${frameSvg(size)}</span>` : avatarRaw(p, size);
 
 export function createTeam({ api, toast, getState, setState, onReward }) {
   let T = null, tab = 'week', busy = false;
