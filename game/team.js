@@ -1,11 +1,12 @@
 // Team: leagues, leaderboards (week / all time / my league), partner battles. All checks are on the server; only display names come here.
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122i';
-import { img } from './missions.js?v=20261122i';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122j';
+import { img } from './missions.js?v=20261122j';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = (n) => Number(n || 0).toLocaleString('ru-RU');
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
 const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 10 || h >= 20) ? b : c; };
+const lgLabel = (t) => esc(t).replace('Оперативник', 'Опера&shy;тивник').replace('Спецагент', 'Спец&shy;агент');
 export const LEAGUES = ['Рекрут', 'Агент', 'Оперативник', 'Спецагент', 'Легенда'];
 const LC = [['#c98a55', '#8a5530'], ['#6ea0e0', '#2f5f9e'], ['#4fc39a', '#1f7a5b'], ['#a98af0', '#5b3cb5'], ['#ffd65c', '#c48a00']];
 let uid = 0;
@@ -61,7 +62,7 @@ export function createTeam({ api, toast, getState, setState, onReward }) {
           ${next ? `<div class="bar bar-blue" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct * 100)}" aria-label="До следующей лиги"><i style="--p:${Math.min(1, pct)}"></i></div>
           <p class="fine">До лиги «${LEAGUES[lg + 1]}» <b class="tn">${num(next.xp - S.xp)}</b> опыта. Лига растёт от любого опыта: шаги, тренировки, брифинги, баттлы.</p>` : '<p class="fine">Высшая лига штаба. Держите планку!</p>'}
         </div>
-        <ol class="tm-ladder" aria-label="Лиги">${T.leagues.map((l) => `<li class="${l.i === lg ? 'on' : l.i > lg ? 'off' : 'past'}">${badge(l.i, 34)}<b>${esc(l.t)}</b><span class="tn">${l.i ? 'от ' + num(l.xp) : 'старт'}</span><span class="tn muted">${l.n} ${plural(l.n, 'агент', 'агента', 'агентов')}</span></li>`).join('')}</ol>
+        <ol class="tm-ladder" aria-label="Лиги">${T.leagues.map((l) => `<li class="${l.i === lg ? 'on' : l.i > lg ? 'off' : 'past'}">${badge(l.i, 34)}<b>${lgLabel(l.t)}</b><span class="tn">${l.i ? 'от ' + num(l.xp) : 'старт'}</span><span class="tn muted">${l.n} ${plural(l.n, 'агент', 'агента', 'агентов')}</span></li>`).join('')}</ol>
       </section>
       <section class="tm-card tm-teamstat" aria-label="Прогресс команды">
         <h3>${ico('target', 'h-ic')}Прогресс команды</h3>

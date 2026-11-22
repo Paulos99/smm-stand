@@ -1489,3 +1489,7 @@ body.fz-on{overflow:hidden}
 @keyframes avf-spin{to{transform:rotate(1turn)}}
 @keyframes avf-pulse{0%,100%{opacity:.4;transform:scale(.94)}50%{opacity:1;transform:scale(1.06)}}
 @media (prefers-reduced-motion:reduce){.avf::before{animation:none;opacity:.8;transform:none}.avf-glint{display:none}}
+
+/* league ladder labels: never clip «Оперативник»/«Спецагент»; soft-hyphen wrap on narrow phones */
+.tm-ladder li b{white-space:normal;overflow:visible;text-overflow:clip;hyphens:manual;overflow-wrap:normal;word-break:normal;max-width:100%;line-height:1.15;font-size:clamp(9.5px,2.6vw,10.5px);letter-spacing:-.02em}
+@media (max-width:520px){.tm-ladder li b{min-height:2.3em;display:flex;align-items:center;justify-content:center}}
