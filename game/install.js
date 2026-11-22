@@ -10,7 +10,7 @@ export const canFullscreen = () => !standalone() && !!document.documentElement.r
 const hidden = () => { try { return Date.now() < +(localStorage.getItem(KEY) || 0); } catch { return false; } };
 
 export function initInstall({ toast, onChange }) {
-  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20261122p', { scope: './' }).then((r) => { reg = r; }).catch(() => {}));
+  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20261122q', { scope: './' }).then((r) => { reg = r; }).catch(() => {}));
   addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; onChange?.(); banner(toast); });
   addEventListener('appinstalled', () => { deferred = null; document.getElementById('install-bar')?.remove(); toast('Штаб на рабочем столе. Открывайте его как приложение'); onChange?.(); });
   document.addEventListener('fullscreenchange', () => onChange?.());
@@ -47,7 +47,7 @@ export async function toggleFullscreen(toast) {
 
 // Updates: the page asks for a fresh index.html (no cache) when the app opens or comes back to the screen.
 // If the build changed, it reloads by itself when nothing is in progress, otherwise it offers «Обновить».
-const BUILD = '20261122p';
+const BUILD = '20261122q';
 let lastCheck = 0, offered = false;
 async function latestBuild() {
   const r = await fetch('./index.html?check=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' });

@@ -1,11 +1,11 @@
 // Teacher cabinet: students progress, hardest steps, missions editor + judging, photo moderation.
-import { sfx, chime, stagger, replay } from './play.js?v=20261122p';
-import { img, left } from './missions.js?v=20261122p';
-import { badge, avatar } from './team.js?v=20261122p';
+import { sfx, chime, stagger, replay } from './play.js?v=20261122q';
+import { img, left } from './missions.js?v=20261122q';
+import { badge, avatar } from './team.js?v=20261122q';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
-const MECH = { quiz: 'Тест', swipe: 'Свайпы', vs: 'Что лучше', sort: 'Сортировка', pairs: 'Пары', cloze: 'Пропуски', field: 'Поле', chat: 'Чат', brief: 'Бриф', boss: 'Финал', interrogate: 'Допрос', dossier: 'Досье', storm: 'Шторм', blocks: 'Блоки', puzzle: 'Пазл' };
+const MECH = { quiz: 'Тест', swipe: 'Свайпы', vs: 'Что лучше', sort: 'Сортировка', pairs: 'Пары', cloze: 'Пропуски', field: 'Поле', chat: 'Чат', brief: 'Бриф', boss: 'Экзамен', interrogate: 'Допрос', dossier: 'Досье', storm: 'Шторм', blocks: 'Блоки', puzzle: 'Пазл' };
 const ago = (t) => { if (!t) return '—'; const m = Math.round((Date.now() - t) / 6e4); return m < 2 ? 'только что' : m < 60 ? `${m} мин назад` : m < 1440 ? `${Math.round(m / 60)} ч назад` : `${Math.round(m / 1440)} дн назад`; };
 const STATUS = { draft: 'Черновик', open: 'Идёт приём', judging: 'Ждёт итогов', done: 'Итоги подведены' };
 const local = (t) => { const d = new Date(t - new Date(t).getTimezoneOffset() * 6e4); return d.toISOString().slice(0, 16); };

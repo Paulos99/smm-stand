@@ -1,7 +1,7 @@
 // Demo data for the key screen. Real lesson titles from smmorbita.ru (6 published lessons).
 export const MECH = {
   quiz: 'Разбор лекции', swipe: 'Перехват', vs: 'Батл трёх', blocks: 'Шифровка', dossier: 'Досье', chat: 'Чат с клиентом',
-  pairs: 'Опознание', brief: 'Допрос клиента', cloze: 'Расшифровка', boss: 'Проверка куратора', clue: 'Найди улику',
+  pairs: 'Опознание', brief: 'Допрос клиента', cloze: 'Расшифровка', boss: 'Экзамен', clue: 'Найди улику',
   mask: 'Под прикрытием', sort: 'Слежка', field: 'Полевое задание', storm: 'Штурм',
 };
 const S = (m, t) => ({ m, t });

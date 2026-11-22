@@ -1,7 +1,7 @@
 // Operation finale: a full-screen story in five beats, each with one focal point and a hold.
 // 1 title card · 2 steps fill with stars, counter grows · 3 stamp «Операция завершена» · 4 reward · 5 next operation unlocks
-import { OPS } from './data.js?v=20261122p';
-import { chime, sfx, sound } from './play.js?v=20261122p';
+import { OPS } from './data.js?v=20261122q';
+import { chime, sfx, sound } from './play.js?v=20261122q';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;

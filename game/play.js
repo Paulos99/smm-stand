@@ -1,8 +1,8 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors, clozeMarks } from './content/grade.js?v=20261122p';
-import { MECH } from './data.js?v=20261122p';
-import { voiceBubble, attachRecorder, canRecord, b64Blob, decode, peaksOf, toUlaw, stopAll, releaseAll, unlockAudio } from './voice.js?v=20261122p';
-import { apiRaw } from '../js/api.js?v=20261122p';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261122q';
+import { MECH } from './data.js?v=20261122q';
+import { voiceBubble, attachRecorder, canRecord, b64Blob, decode, peaksOf, toUlaw, stopAll, releaseAll, unlockAudio } from './voice.js?v=20261122q';
+import { apiRaw } from '../js/api.js?v=20261122q';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 export const el = (tag, attrs = {}, ...kids) => {

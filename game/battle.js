@@ -1,8 +1,8 @@
 // Battles v2: personal async challenge with a stake. Hub with the VS dossier screen, rounds (format, plan, pitch + «Допрос»),
 // round stamps and the final reveal. All scoring and money moves are on the server; this file only shows them.
-import { playStep, mech, el, ico, chime, sfx, tone, replay } from './play.js?v=20261122p';
-import { attachRecorder, canRecord, toUlaw, decode, b64Blob, voiceBubble, unlockAudio, stopAll } from './voice.js?v=20261122p';
-import { apiRaw } from '../js/api.js?v=20261122p';
+import { playStep, mech, el, ico, chime, sfx, tone, replay } from './play.js?v=20261122q';
+import { attachRecorder, canRecord, toUlaw, decode, b64Blob, voiceBubble, unlockAudio, stopAll } from './voice.js?v=20261122q';
+import { apiRaw } from '../js/api.js?v=20261122q';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const icoH = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
