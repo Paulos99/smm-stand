@@ -1,7 +1,8 @@
 // Operation briefing: video (placeholder until a URL is set in the data), lecture reader in the school's mobile style, lesson materials.
 // The lecture text is paid school content: it comes from the API for signed-in players only and is never stored in this public repo.
-import { chime, sfx, sound, replay } from './play.js?v=20261122m';
-import { createDeck } from './deck.js?v=20261122m';
+import { chime, sfx, sound, replay } from './play.js?v=20261122n';
+import { createDeck } from './deck.js?v=20261122n';
+import { fileCards } from './files.js?v=20261122n';
 
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
@@ -72,7 +73,7 @@ export function openBriefing({ op, api, toast, onDone, onClose }) {
       s.blocks.map(b => b.type === 'list' ? el('ul', {}, b.items.map(t => el('li', {}, t))) : el('p', {}, b.text)))));
     const reader = el('article', { class: 'reader' + (large ? ' large-text' : ''), 'aria-label': 'Текст лекции' },
       el('div', { class: 'reader-toolbar' }, el('span', {}, L.source === 'lecture' ? 'Лекция / чтение' : 'Конспект / чтение'), sizeBtn), toc, rbody);
-    const files = el('section', { class: 'th-files', 'aria-labelledby': 'th-files-t' },
+    const files = L.mats ? fileCards({ op, mats: L.mats, lesson: L.lesson, school: L.school, toast }) : el('section', { class: 'th-files', 'aria-labelledby': 'th-files-t' },
       el('h2', { id: 'th-files-t' }, 'Материалы урока'),
       el('p', { class: 'muted' }, 'Шаблоны, гайды и презентация лежат в личном кабинете школы, в уроке ', el('b', {}, `«${L.lesson}»`), '.'),
       el('ul', { class: 'th-flist' }, L.files.map(f => el('li', {}, el('a', { class: 'th-file', href: L.school, target: '_blank', rel: 'noopener' },
