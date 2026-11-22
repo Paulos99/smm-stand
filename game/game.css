@@ -98,7 +98,8 @@ h1,h2,h3{font-family:var(--fh);font-weight:600;letter-spacing:-.01em;margin:0;te
 .path{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 0 26px;--u:min(58px,13vw)}
 .links{position:absolute;inset:0;pointer-events:none;overflow:visible}
 .links path{fill:none;stroke-width:4;stroke-linecap:round}
-.lk{stroke:var(--line);stroke-dasharray:2 9}
+.lk{stroke:color-mix(in srgb,var(--line) 75%,transparent)}
+.u-probe{position:absolute;left:0;top:0;width:var(--u);height:0;visibility:hidden;pointer-events:none}
 .lk-done{stroke:color-mix(in srgb,var(--node-gold) 70%,transparent)}
 .node-wrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;width:150px;transform:translateX(calc(var(--x) * var(--u)));padding-bottom:4px}
 .node{position:relative;display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:var(--panel2);color:var(--muted);border:2px solid var(--line);
@@ -798,6 +799,7 @@ html:has(#play:not([hidden])),body:has(#play:not([hidden])){overflow:hidden}
 .th-school .ic{fill:none!important;stroke:currentColor;color:inherit;width:17px;height:17px}
 
 /* ---------- motion polish: short, transform/opacity only, never blocks input ---------- */
+@keyframes rise-x{from{opacity:0;transform:translateX(calc(var(--x) * var(--u))) translateY(12px)}to{opacity:1;transform:translateX(calc(var(--x) * var(--u)))}}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 @keyframes sheetup{from{opacity:0;transform:translateY(28px) scale(.98)}to{opacity:1;transform:none}}
@@ -805,7 +807,7 @@ html:has(#play:not([hidden])),body:has(#play:not([hidden])){overflow:hidden}
 @keyframes fold{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 /* first paint */
 .app.intro #ops>.op,.app.intro .side .panel{animation:rise .5s var(--spring) both;animation-delay:calc(var(--i,0)*60ms)}
-.app.intro .op-current .path>.node-wrap{animation:rise .45s var(--spring) both;animation-delay:calc(160ms + var(--i,0)*40ms)}
+.app.intro .op-current .path>.node-wrap{animation:rise-x .45s var(--spring) both;animation-delay:calc(160ms + var(--i,0)*40ms)}
 /* overlays: task player and briefing slide up from the map */
 .play.opening{animation:sheetup .36s var(--spring)}
 .play-b.step-in>*{animation:rise .38s var(--spring) both;animation-delay:calc(var(--i,0)*45ms)}

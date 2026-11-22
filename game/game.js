@@ -1,12 +1,12 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261122l';
-import { api, store } from '../js/api.js?v=20261122l';
-import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122l';
-import { openBriefing } from './theory.js?v=20261122l';
-import { playFinale } from './finale.js?v=20261122l';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122l';
-import { createMissions, photoEditor } from './missions.js?v=20261122l';
-import { createTeacher } from './teacher.js?v=20261122l';
-import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122l';
+import { MECH, OPS, SHOP } from './data.js?v=20261122m';
+import { api, store } from '../js/api.js?v=20261122m';
+import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122m';
+import { openBriefing } from './theory.js?v=20261122m';
+import { playFinale } from './finale.js?v=20261122m';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122m';
+import { createMissions, photoEditor } from './missions.js?v=20261122m';
+import { createTeacher } from './teacher.js?v=20261122m';
+import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122m';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -145,7 +145,7 @@ function renderOps() {
       ${s === 'locked' ? '' : `<div class="op-path">${path(op)}${s === 'done' && opComplete(op.n) && !FIN ? `<div class="fin-again"><button class="btn btn-ghost btn-s" type="button" data-finale="${op.n}">${ico('star', 'st on')} Посмотреть финал</button></div>` : ''}</div>`}
     </li>`;
   }).join('');
-  requestAnimationFrame(drawLinks);
+  drawLinks(); requestAnimationFrame(drawLinks);
   markChanges();
 }
 // remember what each node looked like; on the next render pop the ones that just opened or got more stars
@@ -163,21 +163,29 @@ function markChanges() {
   if (opened) setTimeout(() => sfx.unlock(), 120);
   prevNodes = now;
 }
-function drawLinks() {
-  document.querySelectorAll('.path').forEach((p) => {
-    const svg = p.querySelector('.links');
-    if (!p.offsetParent) return;
-    const box = p.getBoundingClientRect();
-    svg.setAttribute('width', box.width); svg.setAttribute('height', box.height);
-    const pts = [...p.querySelectorAll('.node')].map((n) => { const r = n.getBoundingClientRect(); return [r.left + r.width / 2 - box.left, r.top + r.height / 2 - box.top, n]; });
-    let d = '';
-    for (let i = 1; i < pts.length; i++) {
-      const [x1, y1, a] = pts[i - 1], [x2, y2, n] = pts[i], my = (y1 + y2) / 2;
-      const done = !n.classList.contains('node-locked') && !a.classList.contains('node-now') && !a.classList.contains('node-locked');
-      d += `<path class="${done ? 'lk-done' : 'lk'}" d="M${x1} ${y1} C${x1} ${my} ${x2} ${my} ${x2} ${y2}"/>`;
-    }
-    svg.innerHTML = d;
+// The line is laid out from layout boxes (offsetLeft/Top) plus each node's known zigzag shift (--x × --u),
+// so entrance animations and taps (which only change transforms) never bend it or make it straight.
+const linkRO = 'ResizeObserver' in window ? new ResizeObserver((es) => es.forEach((e) => drawPath(e.target))) : null;
+function drawPath(p) {
+  const svg = p.querySelector('.links'); if (!svg || !p.offsetParent) return;
+  let probe = p.querySelector(':scope > .u-probe');
+  if (!probe) { probe = document.createElement('i'); probe.className = 'u-probe'; probe.setAttribute('aria-hidden', 'true'); p.prepend(probe); }
+  const u = probe.offsetWidth, W = p.offsetWidth, H = p.offsetHeight;
+  svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const pts = [...p.querySelectorAll(':scope > .node-wrap')].map((w) => {
+    const n = w.querySelector('.node'); const x = parseFloat(w.style.getPropertyValue('--x')) || 0;
+    return [w.offsetLeft + n.offsetLeft + n.offsetWidth / 2 + x * u, w.offsetTop + n.offsetTop + n.offsetHeight / 2, n];
   });
+  let d = '';
+  for (let i = 1; i < pts.length; i++) {
+    const [x1, y1, a] = pts[i - 1], [x2, y2, n] = pts[i], my = (y1 + y2) / 2;
+    const done = !n.classList.contains('node-locked') && !a.classList.contains('node-now') && !a.classList.contains('node-locked');
+    d += `<path class="${done ? 'lk-done' : 'lk'}" d="M${x1.toFixed(1)} ${y1.toFixed(1)} C${x1.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${my.toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}"/>`;
+  }
+  svg.innerHTML = d;
+}
+function drawLinks() {
+  document.querySelectorAll('.path').forEach((p) => { if (linkRO && !p.dataset.ro) { p.dataset.ro = '1'; linkRO.observe(p); } drawPath(p); });
 }
 
 // ---------- side panels ----------

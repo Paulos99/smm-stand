@@ -1,6 +1,6 @@
 // ШТАБ service worker. Caches only the static shell of the game (same origin, GET).
 // The API lives on another origin and is never touched here, so progress, names and photos are never cached.
-const CACHE = 'shtab-shell-20261122l';
+const CACHE = 'shtab-shell-20261122m';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', '../assets/fonts.css', '../assets/stickers/accepted.webp'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil((async () => { for (const k of await caches.keys()) if (k.startsWith('shtab-') && k !== CACHE) await caches.delete(k); await self.clients.claim(); })()); });
