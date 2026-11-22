@@ -1200,3 +1200,5 @@ img.ava{display:block;border-radius:50%;object-fit:cover;flex:none}
 .brief-hint-wrap>.brief-hint{transition:padding .32s var(--spring),margin .32s var(--spring)}
 .brief-hint-wrap:not(.open)>.brief-hint{padding-top:0;padding-bottom:0;border-width:0}
 #login-form .cta{text-align:center}#login-form .cta .cta-main{margin-inline:auto}
+.inst.upd{grid-template-columns:1fr auto;z-index:61}
+body.playing .inst.upd{bottom:calc(150px + env(safe-area-inset-bottom))}

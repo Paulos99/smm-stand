@@ -1,6 +1,6 @@
 // Operation briefing: video (placeholder until a URL is set in the data), lecture reader in the school's mobile style, lesson materials.
 // The lecture text is paid school content: it comes from the API for signed-in players only and is never stored in this public repo.
-import { chime, sfx, sound, replay } from './play.js?v=20261122b';
+import { chime, sfx, sound, replay } from './play.js?v=20261122c';
 
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);

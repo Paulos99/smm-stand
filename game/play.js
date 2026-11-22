@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors, clozeMarks } from './content/grade.js?v=20261122b';
-import { MECH } from './data.js?v=20261122b';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261122c';
+import { MECH } from './data.js?v=20261122c';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -476,8 +476,6 @@ R.brief = (it, c) => new Promise(done => {
   const sid = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const who = c.step.client; const covered = new Set(); let asked = 0, busy = false;
   const stageEls = it.stages.map((s, i) => el('li', { class: 'stg' }, el('span', { class: 'stg-d', 'aria-hidden': 'true' }), el('span', { class: 'stg-t' }, s)));
-  const stageNow = el('p', { class: 'stg-now', 'aria-live': 'polite' });
-  const checks = it.topics.map(t => el('li', { 'data-id': t.id }, el('span', { class: 'chk', 'aria-hidden': 'true' }, ico('check')), t.t));
   const thread = el('div', { class: 'thread', 'aria-live': 'polite' });
   const input = el('textarea', { rows: 2, maxlength: 600, placeholder: 'Ваш вопрос клиенту…', 'aria-label': 'Ваш вопрос клиенту', onkeydown: e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } } });
   const sendB = el('button', { class: 'icon-btn send', type: 'button', 'aria-label': 'Отправить', onclick: () => send() }, ico('send'));
@@ -486,8 +484,7 @@ R.brief = (it, c) => new Promise(done => {
   const hintBox = el('p', { class: 'brief-hint', id: 'brief-hint', 'aria-live': 'polite' }); const hintWrap = el('div', { class: 'brief-hint-wrap', 'aria-hidden': 'true' }, hintBox); let hintOpen = false, hintKey = '';
   c.body.append(
     el('div', { class: 'brief-top' },
-      el('ol', { class: 'stages', 'aria-label': 'Этапы переговоров' }, stageEls), stageNow,
-      el('details', { class: 'brief-list', open: matchMedia('(min-width: 900px)').matches }, el('summary', {}, el('span', { class: 'tn cov-n' }, `0 из ${it.topics.length}`), ' фактов в брифе'), el('ul', { class: 'checks' }, checks))),
+      el('ol', { class: 'stages', 'aria-label': 'Этапы переговоров' }, stageEls)),
     el('div', { class: 'chat-top' }, el('span', { class: 'ava', 'aria-hidden': 'true' }, who.name[0]), el('div', {}, el('b', {}, who.name), el('span', {}, who.role + ' · играет ИИ'))), thread, hintWrap);
   c.foot.replaceChildren(el('div', { class: 'composer' }, input, sendB), el('div', { class: 'brief-actions' }, hintB, endB));
   thread.append(bubble('in', it.greet || 'Здравствуйте! Я Марина, у меня кофейня «Точка тепла» у центра. Подруга сказала, вы разбираетесь в соцсетях. Сделаете нам ленту поярче?'));
@@ -499,10 +496,7 @@ R.brief = (it, c) => new Promise(done => {
   }
   function draw() {
     const si = stageIdx();
-    stageEls.forEach((s, i) => { s.classList.toggle('done', i < si); s.classList.toggle('cur', i === si); });
-    const last = it.stages.length - 1; stageNow.textContent = si >= last ? 'Все факты собраны. Подведите итог и завершайте бриф.' : `Сейчас: ${it.stages[si]}. Ведите разговор к этапу «${it.stages[Math.min(si + 1, last)]}».`;
-    checks.forEach(li => li.classList.toggle('on', covered.has(li.dataset.id)));
-    c.body.querySelector('.cov-n').textContent = `${covered.size} из ${it.topics.length}`;
+    stageEls.forEach((s, i) => { s.classList.toggle('done', i < si); s.classList.toggle('cur', i === si); if (i === si) s.setAttribute('aria-current', 'step'); else s.removeAttribute('aria-current'); });
     if (hintOpen) paintHint();
     endB.disabled = asked < 3; endB.textContent = asked < 3 ? `Завершить бриф (ещё ${3 - asked} вопр.)` : 'Завершить бриф';
   }

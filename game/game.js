@@ -1,11 +1,11 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261122b';
-import { api, store } from '../js/api.js?v=20261122b';
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122b';
-import { openBriefing } from './theory.js?v=20261122b';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122b';
-import { createMissions, photoEditor } from './missions.js?v=20261122b';
-import { createTeacher } from './teacher.js?v=20261122b';
-import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen } from './install.js?v=20261122b';
+import { MECH, OPS, SHOP } from './data.js?v=20261122c';
+import { api, store } from '../js/api.js?v=20261122c';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122c';
+import { openBriefing } from './theory.js?v=20261122c';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122c';
+import { createMissions, photoEditor } from './missions.js?v=20261122c';
+import { createTeacher } from './teacher.js?v=20261122c';
+import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122c';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -480,4 +480,5 @@ addEventListener('resize', () => requestAnimationFrame(drawLinks));
 document.fonts?.ready.then(drawLinks);
 setTheme(document.documentElement.dataset.theme || 'dark');
 initInstall({ toast, onChange: () => { if (S) renderSide(); } });
+watchUpdates({ toast, busy: () => !document.getElementById('play')?.hidden || !!document.querySelector('dialog[open], .sheet.open, #lg-pass:not(:placeholder-shown)') });
 boot();

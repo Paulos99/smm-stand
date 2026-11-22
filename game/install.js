@@ -1,7 +1,7 @@
 // Install the game as an app (Android / desktop Chrome via beforeinstallprompt, iOS Safari via a short how-to) and a fullscreen toggle.
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ico = (id) => `<svg class="ic" aria-hidden="true"><use href="#i-${id}"/></svg>`;
-let deferred = null;
+let deferred = null, reg = null;
 const KEY = 'shtab-install-hide';
 export const standalone = () => matchMedia('(display-mode: fullscreen)').matches || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 export const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -10,7 +10,7 @@ export const canFullscreen = () => !standalone() && !!document.documentElement.r
 const hidden = () => { try { return Date.now() < +(localStorage.getItem(KEY) || 0); } catch { return false; } };
 
 export function initInstall({ toast, onChange }) {
-  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20261122b', { scope: './' }).catch(() => {}));
+  if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('./sw.js?v=20261122c', { scope: './' }).then((r) => { reg = r; }).catch(() => {}));
   addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e; onChange?.(); banner(toast); });
   addEventListener('appinstalled', () => { deferred = null; document.getElementById('install-bar')?.remove(); toast('Штаб на рабочем столе. Открывайте его как приложение'); onChange?.(); });
   document.addEventListener('fullscreenchange', () => onChange?.());
@@ -43,4 +43,34 @@ function iosHowTo() {
 export async function toggleFullscreen(toast) {
   try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen({ navigationUI: 'hide' }); }
   catch { toast?.('Браузер не разрешил полный экран'); }
+}
+
+// Updates: the page asks for a fresh index.html (no cache) when the app opens or comes back to the screen.
+// If the build changed, it reloads by itself when nothing is in progress, otherwise it offers «Обновить».
+const BUILD = '20261122c';
+let lastCheck = 0, offered = false;
+async function latestBuild() {
+  const r = await fetch('./index.html?check=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' });
+  const m = (await r.text()).match(/game\.js\?v=([0-9a-z]+)/); return m ? m[1] : '';
+}
+async function applyUpdate() { try { await reg?.update(); } catch {} location.reload(); }
+export function watchUpdates({ toast, busy }) {
+  const check = async (force) => {
+    if (!navigator.onLine || offered || (!force && Date.now() - lastCheck < 60000)) return; lastCheck = Date.now();
+    let v = ''; try { v = await latestBuild(); } catch { return; }
+    if (!v || v === BUILD) return;
+    let tried = ''; try { tried = sessionStorage.getItem('shtab-upd') || ''; } catch {}
+    if (!busy() && tried !== v) { try { sessionStorage.setItem('shtab-upd', v); } catch {} return applyUpdate(); } // one silent reload per version, never a loop
+    offered = true; updateBar(toast);
+  };
+  setTimeout(() => check(true), 1500);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { reg?.update().catch(() => {}); check(); } });
+  addEventListener('focus', () => check());
+}
+function updateBar() {
+  if (document.getElementById('upd-bar')) return;
+  const bar = document.createElement('aside'); bar.id = 'upd-bar'; bar.className = 'inst upd'; bar.setAttribute('role', 'status');
+  bar.innerHTML = `<div><b>Вышло обновление штаба</b><span>Допройдите задание и обновите, прогресс сохранится.</span></div><button class="cta cta-sm" type="button" data-upd>Обновить</button>`;
+  document.body.append(bar); requestAnimationFrame(() => bar.classList.add('is-in'));
+  bar.querySelector('[data-upd]').onclick = applyUpdate;
 }
