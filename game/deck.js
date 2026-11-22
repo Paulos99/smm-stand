@@ -1,7 +1,7 @@
 // Lesson presentation viewer: swipe on phones, arrows and keys on PC, counter, thumbnails, fullscreen, pinch / double-tap zoom.
 // Slides are paid school content: each image is fetched from the API with the player's token and shown from a blob URL.
-import { apiBlob } from '../js/api.js?v=20261122e';
-import { sfx } from './play.js?v=20261122e';
+import { apiBlob } from '../js/api.js?v=20261122f';
+import { sfx } from './play.js?v=20261122f';
 
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
