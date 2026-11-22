@@ -1,7 +1,7 @@
 // Lesson files as cards: preview, name, type, size; «Открыть» shows the pages in a fullscreen viewer with pinch-zoom, «Скачать» saves the file.
 // The files are paid school content: they live only in the API image and come through short-lived signed links for signed-in players.
-import { api, apiBlob } from '../js/api.js?v=20261122n';
-import { sfx } from './play.js?v=20261122n';
+import { api, apiBlob } from '../js/api.js?v=20261122o';
+import { sfx } from './play.js?v=20261122o';
 
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
