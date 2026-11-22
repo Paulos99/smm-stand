@@ -21,12 +21,6 @@ matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyThem
 applyTheme();
 
 const ROLE = { student: 'Ученик', teacher: 'Учитель' };
-async function enter(name, role) {
-  const r = await api('/api/guest', { method: 'POST', body: { name, role }, timeout: 35000 });
-  store.save(r.token, { login: r.login, name: r.name, role: r.role });
-  store.tester = r.name; localStorage.setItem('stand-role', r.role); localStorage.setItem('stand-fb-name', r.name);
-  ME = null; return r;
-}
 function header() {
   const u = store.user; const box = $('#header-actions'); box.replaceChildren(themeBtn);
   if (!u) return;
@@ -34,11 +28,9 @@ function header() {
   const other = u.role === 'teacher' ? 'student' : 'teacher';
   box.prepend(...[
     h('span', { class: 'who' }, u.name),
-    h('button', { class: 'pill-btn role', type: 'button', title: `Сейчас: ${ROLE[u.role] || 'Ученик'}. Нажмите, чтобы стать: ${ROLE[other]}`, 'aria-label': `Роль: ${ROLE[u.role]}. Переключить на «${ROLE[other]}»`,
-      onclick: async e => { e.currentTarget.disabled = true; try { await enter(u.name, other); toast(`Теперь вы ${ROLE[other].toLowerCase()}`); if (other === 'student' && /^#\/dash/.test(location.hash)) location.hash = '#/'; else route(); } catch (er) { toast(er.message); e.currentTarget.disabled = false; } } },
-      (u.role === 'teacher' ? '👩‍🏫 ' : '🎓 ') + (ROLE[u.role] || 'Ученик')),
+    h('span', { class: 'pill-btn role', title: 'Роль из аккаунта школы' }, (u.role === 'teacher' ? '👩‍🏫 ' : '🎓 ') + (ROLE[u.role] || 'Ученик')),
     u.role === 'teacher' ? h('a', { class: 'pill-btn', href: '#/dash', 'aria-label': 'Статистика' }, narrow ? '📊' : 'Статистика') : null,
-    h('button', { class: 'pill-btn ghost', type: 'button', 'aria-label': 'Сменить имя', title: 'Сменить имя', onclick: () => { store.clear(); location.hash = '#/login'; } }, narrow ? '✎' : 'Сменить имя')].filter(Boolean));
+    h('button', { class: 'pill-btn ghost', type: 'button', 'aria-label': 'Выйти', title: 'Выйти', onclick: async () => { try { await api('/api/logout', { method: 'POST', body: {} }); } catch {} store.clear(); location.hash = '#/login'; } }, narrow ? '⎋' : 'Выйти')].filter(Boolean));
 }
 
 async function loadBase() {
@@ -49,28 +41,11 @@ async function loadBase() {
 
 // ---- views ----
 function viewLogin() {
-  const name = h('input', { type: 'text', id: 'l-name', value: store.tester, maxlength: 40, autocomplete: 'given-name', placeholder: 'Например, Алина', required: true });
-  let role = localStorage.getItem('stand-role') || 'student';
-  const seg = h('div', { class: 'ab role-seg', role: 'group', 'aria-label': 'Роль' }, ['student', 'teacher'].map(k => h('button', { type: 'button', 'aria-pressed': String(k === role), onclick: e => { role = k; [...seg.children].forEach(b => b.setAttribute('aria-pressed', String(b === e.currentTarget))); hint.textContent = HINT[k]; } }, (k === 'teacher' ? '👩‍🏫 ' : '🎓 ') + ROLE[k])));
-  const HINT = { student: 'Проходите форматы так, как их увидят ученики.', teacher: 'Видно всё, что у ученика, плюс статистика стенда и ИИ-сборщик игр.' };
-  const hint = h('p', { class: 'small muted', style: 'margin-top:8px' }, HINT[role]);
-  const err = h('div', { class: 'err', role: 'alert' });
-  const btn = h('button', { class: 'btn primary block', type: 'button' }, 'Войти в лабораторию');
-  const go = async () => {
-    err.textContent = ''; const n = name.value.trim();
-    if (n.length < 2) { err.textContent = 'Напишите имя, так команда поймёт, чей это отзыв'; name.focus(); return; }
-    btn.disabled = true; btn.textContent = 'Входим…';
-    try { await enter(n, role); CONTENT = null; location.hash = '#/'; }
-    catch (e) { err.textContent = e.message; } finally { btn.disabled = false; btn.textContent = 'Войти в лабораторию'; }
-  };
-  btn.onclick = go; name.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
-  app.replaceChildren(hero('ЛАБОРАТОРИЯ ФОРМАТОВ', 'ПРОБУЕМ.<br>ОЦЕНИВАЕМ.<br><span>ВЫБИРАЕМ</span> ЛУЧШЕЕ', 'Тестовый стенд СММ ШКОЛЫ для команды. Здесь живут новые форматы обучения, у каждого два варианта. Пройдите, поставьте оценку, и мы увидим, что заходит.'),
+  // Name-only entry is gone: the stand opens only from the school (smmorbita.ru → кабинет → «Режим игры» → «Играть»).
+  app.replaceChildren(hero('ЛАБОРАТОРИЯ ФОРМАТОВ', 'ПРОБУЕМ.<br>ОЦЕНИВАЕМ.<br><span>ВЫБИРАЕМ</span> ЛУЧШЕЕ', 'Тестовый стенд СММ ШКОЛЫ для команды. Вход только через аккаунт школы.'),
     h('div', { class: 'wrap' }, h('div', { class: 'login' },
-      h('h2', {}, 'Как вас зовут?'), h('p', { class: 'small muted' }, 'Пароль не нужен. Имя увидит команда рядом с вашими оценками. Данные на стенде выдуманные.'),
-      h('label', { class: 'f', for: 'l-name' }, 'Ваше имя'), name,
-      h('label', { class: 'f' }, 'Кем заходите'), seg, hint, err, h('div', { style: 'margin-top:14px' }, btn),
-      h('p', { class: 'small muted', style: 'margin-top:12px' }, 'Роль можно поменять в любой момент кнопкой в шапке.'))));
-  if (!name.value) name.focus();
+      h('h2', {}, 'Войдите через школу'), h('p', { class: 'small muted' }, 'Откройте кабинет на smmorbita.ru и нажмите «Играть» в блоке «Режим игры». Пароль здесь вводить не нужно.'),
+      h('div', { style: 'margin-top:14px' }, h('a', { class: 'btn primary block', href: 'https://smmorbita.ru/admin.html' }, 'Открыть школу')))));
 }
 
 function hero(eyebrow, title, text, img = 'school') {

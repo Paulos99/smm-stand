@@ -1,10 +1,11 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261121v';
-import { api, store } from '../js/api.js?v=20261121v';
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261121v';
-import { openBriefing } from './theory.js?v=20261121v';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261121v';
-import { createMissions, photoEditor } from './missions.js?v=20261121v';
-import { createTeacher } from './teacher.js?v=20261121v';
+import { MECH, OPS, SHOP } from './data.js?v=20261122a';
+import { api, store } from '../js/api.js?v=20261122a';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122a';
+import { openBriefing } from './theory.js?v=20261122a';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122a';
+import { createMissions, photoEditor } from './missions.js?v=20261122a';
+import { createTeacher } from './teacher.js?v=20261122a';
+import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen } from './install.js?v=20261122a';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -210,9 +211,10 @@ function renderSide() {
       <h3>Знаки отличия <span class="muted tn">${S.badges.filter((a) => a.on).length} из ${S.badges.length}</span></h3>
       <ul class="ach">${S.badges.map((a) => `<li class="${a.on ? '' : 'off'}"><img src="../assets/stickers/${a.st}.webp" alt="" width="72" height="72" loading="lazy"><b>${esc(a.t)}</b><span>${esc(a.d)}</span></li>`).join('')}</ul>
       ${S.bought?.length ? `<h3>Получено в Лавке</h3><ul class="bought">${S.bought.slice().reverse().map((b) => `<li><span>${esc(b.t)}</span><span class="tn muted">${new Date(b.at).toLocaleDateString('ru-RU')}</span></li>`).join('')}</ul>` : ''}
+      ${canInstall() || canFullscreen() ? `<div class="ag-app"><div><b>Приложение</b><p class="fine">Поставьте штаб на рабочий стол: он будет открываться сразу на весь экран.</p></div><div class="ag-pa">${canInstall() ? `<button class="btn-ghost btn-s" type="button" data-app-install>${ico('send')}Установить</button>` : ''}${canFullscreen() ? `<button class="btn-ghost btn-s" type="button" data-fs>${document.fullscreenElement ? 'Обычный экран' : 'Во весь экран'}</button>` : ''}</div></div>` : ''}
       <div class="agent-foot">
         ${S.role === 'teacher' ? `<button class="btn-ghost btn-s" type="button" data-go="teach">${ico('chart')}Кабинет</button><a class="btn-ghost btn-s" href="../#/dash">${ico('chart')}Статистика</a>` : ''}
-        <button class="btn-ghost btn-s" type="button" data-logout>${ico('user')}Сменить имя</button>
+        <button class="btn-ghost btn-s" type="button" data-logout>${ico('user')}Выйти</button>
       </div>
     </section>
     <section class="panel" data-panel="shop" aria-labelledby="p-shop">
@@ -374,36 +376,31 @@ function renderAll() {
   }
 }
 
+const SCHOOL = 'https://smmorbita.ru/admin.html';
 function entry(msg = '') {
   $('.app').hidden = true; const e = $('#entry'); e.hidden = false;
-  const role = localStorage.getItem('stand-role') || 'student';
-  e.innerHTML = `<form class="entry-f" novalidate>
+  e.innerHTML = `<section class="entry-f" aria-labelledby="entry-t">
     <span class="logo"><span class="beacon" aria-hidden="true"></span>ШТАБ</span>
     <img src="../assets/stickers/accepted.webp" alt="" width="150" height="150" class="entry-st">
-    <h1>Агент, представьтесь</h1>
-    <p class="muted">Без паролей. Имя увидит только команда в статистике.</p>
-    <label class="fld"><span>Ваше имя</span><input name="name" autocomplete="given-name" maxlength="40" required value="${esc(store.user?.name || '')}"></label>
-    <div class="seg" role="radiogroup" aria-label="Роль">${[['student', 'Ученик'], ['teacher', 'Учитель']].map(([v, t]) => `<label><input type="radio" name="role" value="${v}" ${role === v ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div>
-    <p class="err" role="alert">${esc(msg)}</p>
-    <button class="cta" type="submit"><span class="cta-main">Войти в штаб ${ico('play', 'fill')}</span></button>
-  </form>`;
-  e.querySelector('input[name=name]').focus();
-  e.querySelector('form').addEventListener('submit', async (ev) => {
-    ev.preventDefault(); const f = ev.currentTarget; const b = f.querySelector('button'); const name = f.name.value.trim();
-    if (name.length < 2) { f.querySelector('.err').textContent = 'Напишите имя, хотя бы 2 буквы'; return; }
-    b.disabled = true; f.querySelector('.err').textContent = '';
-    try {
-      const r = await api('/api/guest', { method: 'POST', body: { name, role: f.role.value }, timeout: 35000 });
-      store.save(r.token, { login: r.login, name: r.name, role: r.role }); store.tester = r.name; localStorage.setItem('stand-role', r.role); localStorage.setItem('stand-fb-name', r.name);
-      e.hidden = true; boot();
-    } catch (er) { f.querySelector('.err').textContent = er.message; b.disabled = false; }
-  });
+    <h1 id="entry-t">Вход через школу</h1>
+    <p class="muted">Штаб открывается из аккаунта СММ ШКОЛЫ. Зайдите в кабинет на smmorbita.ru и нажмите «Играть» в блоке «Режим игры». Пароль здесь не нужен, прогресс сохранится.</p>
+    ${msg ? `<p class="err" role="alert">${esc(msg)}</p>` : ''}
+    <a class="cta" href="${SCHOOL}"><span class="cta-main">Открыть школу ${ico('ext')}</span></a>
+    <p class="fine">Пока режим игры открыт преподавателям. Ученикам кнопку добавим позже.</p>
+  </section>`;
+}
+async function schoolPass() { // one-time pass from smmorbita.ru, already removed from the address bar by theme-init.js
+  const pass = window.__schoolPass; if (!pass) return; window.__schoolPass = '';
+  $('#entry').hidden = false; $('#entry').innerHTML = '<div class="play-wait"><span class="spin" aria-hidden="true"></span>Проверяем пропуск из школы…</div>';
+  try { const r = await api('/api/school-login', { method: 'POST', body: { pass }, timeout: 35000 }); store.save(r.token, { login: r.login, name: r.name, role: r.role }); store.tester = r.name; history.replaceState(null, '', location.pathname + location.search); }
+  catch (er) { history.replaceState(null, '', location.pathname + location.search); throw er; }
 }
 async function boot() {
+  try { await schoolPass(); } catch (er) { return entry(er.message); }
   if (!store.token) return entry();
   $('.app').hidden = false; $('#entry').hidden = true;
   if (!S) $('#ops').innerHTML = '<li class="loading">Связываемся со штабом…</li>';
-  try { S = await api('/api/game/state?tz=' + encodeURIComponent(TZ), { timeout: 30000 }); renderAll(); notify(); mis.card(); }
+  try { S = await api('/api/game/state?tz=' + encodeURIComponent(TZ), { timeout: 30000 }); renderAll(); notify(); mis.card(); setTimeout(() => showInstallBanner(toast), 4000); }
   catch (e) { if (!store.token) return entry('Сессия закончилась, войдите снова'); $('#ops').innerHTML = `<li class="loading">${esc(e.message)} <button class="btn btn-ghost btn-s" type="button" data-retry>Повторить</button></li>`; }
 }
 
@@ -411,6 +408,8 @@ document.addEventListener('click', (e) => {
   const b = e.target.closest('button, a'); if (!b) return;
   if (team.onClick(b)) return;
   if ('mission' in b.dataset) return mis.open();
+  if ('appInstall' in b.dataset) return install(toast);
+  if ('fs' in b.dataset) return toggleFullscreen(toast);
   if ('photo' in b.dataset) return photoEditor({ api, toast, onDone: (ph) => { S.photo = ph; S.photoHidden = false; renderSide(); } });
   if ('photoRm' in b.dataset) { if (!confirm('Убрать фото?')) return; return api('/api/game/photo', { method: 'POST', body: { remove: true } }).then(() => { S.photo = ''; renderSide(); toast('Фото убрано'); }).catch((er) => toast(er.message)); }
   if (b.closest('#view-teach')) { teacher.onClick(b); if (!b.dataset.go) return; }
@@ -422,7 +421,7 @@ document.addEventListener('click', (e) => {
   if (b.dataset.go) return setView(b.dataset.go);
   if ('closeReward' in b.dataset) return closeReward();
   if ('retry' in b.dataset) return boot();
-  if ('logout' in b.dataset) { store.clear(); S = null; return entry(); }
+  if ('logout' in b.dataset) { api('/api/logout', { method: 'POST', body: {} }).catch(() => {}); store.clear(); S = null; return entry(); }
   if (b.classList.contains('theme-btn')) setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
 });
 document.addEventListener('submit', async (e) => {
@@ -439,4 +438,5 @@ $('#sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') e.ta
 addEventListener('resize', () => requestAnimationFrame(drawLinks));
 document.fonts?.ready.then(drawLinks);
 setTheme(document.documentElement.dataset.theme || 'dark');
+initInstall({ toast, onChange: () => { if (S) renderSide(); } });
 boot();
