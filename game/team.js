@@ -1,6 +1,6 @@
 // Team: leagues, leaderboards (week / all time / my league), partner battles. All checks are on the server; only display names come here.
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122j';
-import { img } from './missions.js?v=20261122j';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122k';
+import { img } from './missions.js?v=20261122k';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = (n) => Number(n || 0).toLocaleString('ru-RU');

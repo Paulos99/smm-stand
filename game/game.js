@@ -1,12 +1,12 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261122j';
-import { api, store } from '../js/api.js?v=20261122j';
-import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122j';
-import { openBriefing } from './theory.js?v=20261122j';
-import { playFinale } from './finale.js?v=20261122j';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122j';
-import { createMissions, photoEditor } from './missions.js?v=20261122j';
-import { createTeacher } from './teacher.js?v=20261122j';
-import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122j';
+import { MECH, OPS, SHOP } from './data.js?v=20261122k';
+import { api, store } from '../js/api.js?v=20261122k';
+import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122k';
+import { openBriefing } from './theory.js?v=20261122k';
+import { playFinale } from './finale.js?v=20261122k';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122k';
+import { createMissions, photoEditor } from './missions.js?v=20261122k';
+import { createTeacher } from './teacher.js?v=20261122k';
+import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122k';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;

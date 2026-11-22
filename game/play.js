@@ -1,8 +1,8 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors, clozeMarks } from './content/grade.js?v=20261122j';
-import { MECH } from './data.js?v=20261122j';
-import { voiceBubble, attachRecorder, canRecord, b64Blob, decode, peaksOf, toUlaw, stopAll, releaseAll, unlockAudio } from './voice.js?v=20261122j';
-import { apiRaw } from '../js/api.js?v=20261122j';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261122k';
+import { MECH } from './data.js?v=20261122k';
+import { voiceBubble, attachRecorder, canRecord, b64Blob, decode, peaksOf, toUlaw, stopAll, releaseAll, unlockAudio } from './voice.js?v=20261122k';
+import { apiRaw } from '../js/api.js?v=20261122k';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {
@@ -196,36 +196,60 @@ R.vs = (it, c) => new Promise(done => {
 });
 
 // ---- drag & drop for assembly steps (pointer events: mouse + touch), tap and keyboard stay as fallback ----
+// Touch: a swipe anywhere scrolls the page natively (touch-action: pan-y); a drag starts only after a ~280 ms hold
+// with the finger still (<8 px), then a light haptic + lift. Mouse drags start right away after 6 px.
+const HOLD_MS = 280, HOLD_SLOP = 8, EDGE = 72;
+const scroller = (n) => { for (let e = n?.parentElement; e && e !== document.body; e = e.parentElement) { const o = getComputedStyle(e).overflowY; if ((o === 'auto' || o === 'scroll') && e.scrollHeight > e.clientHeight + 1) return e; } return document.scrollingElement || document.documentElement; };
 function dnd({ root, chips, targets, fill, label, draw, locked }) {
   let drag = null, lastDrop = 0;
   root.addEventListener('click', ev => { if (performance.now() - lastDrop < 350) { ev.stopImmediatePropagation(); ev.preventDefault(); } }, true);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const hit = (x, y) => { const e = document.elementFromPoint(x, y); if (!e) return null; const t = e.closest('[data-drop]'); if (t && root.contains(t)) return t; return e.closest('.pool') && root.contains(e.closest('.pool')) ? 'pool' : null; };
-  const start = (e, src) => {
-    if (locked() || e.button > 0) return;
-    const val = src.kind === 'chip' ? src.i : fill[src.k]; if (val == null) return;
-    drag = { src, val, x0: e.clientX, y0: e.clientY, on: false, el: e.currentTarget, id: e.pointerId, over: null };
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-  };
-  const move = e => {
-    if (!drag || e.pointerId !== drag.id) return;
-    const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
-    if (!drag.on) {
-      if (Math.hypot(dx, dy) < 6) return;
-      drag.on = true; const r = drag.el.getBoundingClientRect();
-      const g = el('div', { class: 'dnd-ghost', 'aria-hidden': 'true' }, label(drag.val)); g.style.width = Math.min(r.width, 320) + 'px';
-      document.body.append(g); drag.g = g; drag.ox = e.clientX - r.left; drag.oy = e.clientY - r.top;
-      drag.el.classList.add('dnd-src'); document.body.classList.add('dnd-on');
-    }
-    e.preventDefault();
-    drag.g.style.transform = `translate(${e.clientX - drag.ox}px,${e.clientY - drag.oy}px) rotate(-2deg) scale(1.04)`;
-    const t = hit(e.clientX, e.clientY);
+  const place = (x, y) => {
+    drag.g.style.transform = `translate(${x - drag.ox}px,${y - drag.oy}px) rotate(-2deg) scale(1.06)`;
+    const t = hit(x, y);
     if (t !== drag.over) { if (drag.over && drag.over !== 'pool') drag.over.classList.remove('over'); root.querySelector('.pool')?.classList.toggle('over', t === 'pool' && drag.src.kind === 'slot'); if (t && t !== 'pool') t.classList.add('over'); drag.over = t; }
   };
+  const auto = () => { // keep scrolling while the dragged block sits near the top/bottom edge
+    if (!drag || !drag.on) return;
+    const y = drag.cy, h = innerHeight; let v = 0;
+    if (y < EDGE) v = -Math.ceil((EDGE - y) / 4); else if (y > h - EDGE) v = Math.ceil((y - (h - EDGE)) / 4);
+    if (v) { const sc = drag.sc; const before = sc.scrollTop; sc.scrollTop += v; if (sc.scrollTop !== before) place(drag.cx, drag.cy); }
+    drag.raf = requestAnimationFrame(auto);
+  };
+  const activate = () => {
+    if (!drag || drag.on) return;
+    drag.on = true; clearTimeout(drag.t); const r = drag.el.getBoundingClientRect();
+    const g = el('div', { class: 'dnd-ghost', 'aria-hidden': 'true' }, label(drag.val)); g.style.width = Math.min(r.width, 320) + 'px';
+    document.body.append(g); drag.g = g; drag.ox = Math.min(drag.x0 - r.left, Math.min(r.width, 320) - 12); drag.oy = drag.y0 - r.top;
+    drag.el.classList.add('dnd-src', 'dnd-grab'); document.body.classList.add('dnd-on');
+    if (drag.touch) { try { navigator.vibrate?.(12); } catch {} }
+    drag.sc = scroller(root); place(drag.cx, drag.cy); drag.raf = requestAnimationFrame(auto);
+  };
+  const start = (e, src) => {
+    if (locked() || e.button > 0 || drag) return;
+    const val = src.kind === 'chip' ? src.i : fill[src.k]; if (val == null) return;
+    const touch = e.pointerType !== 'mouse';
+    drag = { src, val, x0: e.clientX, y0: e.clientY, cx: e.clientX, cy: e.clientY, on: false, el: e.currentTarget, id: e.pointerId, over: null, touch };
+    if (touch) { drag.el.classList.add('dnd-hold'); drag.t = setTimeout(activate, HOLD_MS); }
+    else e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const reset = (d) => { clearTimeout(d.t); cancelAnimationFrame(d.raf); d.el.classList.remove('dnd-src', 'dnd-grab', 'dnd-hold'); document.body.classList.remove('dnd-on'); root.querySelectorAll('.over').forEach(x => x.classList.remove('over')); };
+  const move = e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag.cx = e.clientX; drag.cy = e.clientY;
+    const dist = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0);
+    if (!drag.on) {
+      if (drag.touch) { if (dist > HOLD_SLOP) { reset(drag); drag = null; } return; } // finger moved first: it is a scroll
+      if (dist < 6) return; activate();
+    }
+    e.preventDefault(); place(e.clientX, e.clientY);
+  };
+  // once a touch drag is live, stop the browser from turning the same gesture into a scroll
+  const tmove = e => { if (drag && drag.on && e.cancelable) e.preventDefault(); };
   const end = e => {
     if (!drag || e.pointerId !== drag.id) return;
-    const d = drag; drag = null; d.el.classList.remove('dnd-src'); document.body.classList.remove('dnd-on');
-    root.querySelectorAll('.over').forEach(x => x.classList.remove('over'));
+    const d = drag; drag = null; reset(d);
     if (!d.on) return; // plain tap: the click handler does the tap-to-place
     lastDrop = performance.now(); // swallow the click that follows a drag
     const t = e.type === 'pointercancel' ? null : hit(e.clientX, e.clientY);
@@ -235,7 +259,7 @@ function dnd({ root, chips, targets, fill, label, draw, locked }) {
       if (d.src.kind === 'chip') { const j = fill.indexOf(d.val); if (j >= 0) fill[j] = null; fill[k] = d.val; }
       else { const j = d.src.k; [fill[j], fill[k]] = [fill[k], fill[j]]; }
       to = t;
-    } else if (d.src.kind === 'slot') fill[d.src.k] = null;
+    } else if (d.src.kind === 'slot' && e.type !== 'pointercancel') fill[d.src.k] = null;
     const g = d.g;
     if (to && !reduce) {
       const r = to.getBoundingClientRect(), gr = g.getBoundingClientRect();
@@ -246,7 +270,11 @@ function dnd({ root, chips, targets, fill, label, draw, locked }) {
     draw();
     if (to) { to.classList.remove('snap'); void to.offsetWidth; to.classList.add('snap'); }
   };
-  const wire = (node, src) => { node.addEventListener('pointerdown', e => start(e, src)); node.addEventListener('pointermove', move); node.addEventListener('pointerup', end); node.addEventListener('pointercancel', end); node.addEventListener('dragstart', e => e.preventDefault()); };
+  const wire = (node, src) => {
+    node.addEventListener('pointerdown', e => start(e, src)); node.addEventListener('pointermove', move); node.addEventListener('pointerup', end); node.addEventListener('pointercancel', end);
+    node.addEventListener('touchmove', tmove, { passive: false }); node.addEventListener('dragstart', e => e.preventDefault());
+    node.addEventListener('contextmenu', e => { if (drag) e.preventDefault(); });
+  };
   chips.forEach(ch => wire(ch, { kind: 'chip', i: +ch.dataset.i }));
   targets.forEach((t, k) => { t.dataset.drop = '1'; t.dataset.k = k; wire(t, { kind: 'slot', k });
     t.addEventListener('keydown', e => { // keyboard: arrows move a placed block to the neighbouring slot (swap)
@@ -261,7 +289,7 @@ R.blocks = (it, c) => new Promise(done => {
   const chips = order.map(i => el('button', { class: 'chip-b', type: 'button', 'data-i': i, onclick: () => { if (checked) return; const k = fill.indexOf(null); if (k < 0) return; fill[k] = i; draw(); } }, it.blocks[i]));
   const check = el('button', { class: 'cta cta-sm', type: 'button', disabled: true, onclick: () => go() }, 'Проверить');
   let checked = false;
-  c.body.append(el('h2', { class: 'q' }, it.q), el('p', { class: 'hint' }, 'Перетащите блоки в ячейки или нажимайте на них по очереди.'), el('div', { class: 'slots' + (it.slots.length > 4 ? ' slots-chain' : '') }, slots), el('div', { class: 'pool' }, chips));
+  c.body.append(el('h2', { class: 'q' }, it.q), el('p', { class: 'hint' }, 'Нажимайте на блоки по очереди или удерживайте и перетаскивайте.'), el('div', { class: 'slots' + (it.slots.length > 4 ? ' slots-chain' : '') }, slots), el('div', { class: 'pool' }, chips));
   c.foot.replaceChildren(check);
   dnd({ root: c.body, chips, targets: slots, fill, label: i => it.blocks[i], draw: () => draw(), locked: () => checked });
   function draw() {
@@ -445,11 +473,14 @@ R.storm = (it, c) => new Promise(done => {
   const sid = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); let busy = false, tries = 0;
   const min = it.min || 5; const list = el('ol', { class: 'storm-l' });
   const addRow = (v = '') => { if (list.children.length >= 8) return; const inp = el('input', { type: 'text', maxlength: 200, placeholder: `Идея ${list.children.length + 1}`, 'aria-label': `Идея ${list.children.length + 1}` }); inp.value = v; list.append(el('li', {}, inp, el('span', { class: 'storm-m' }))); return inp; };
-  for (let i = 0; i < min; i++) addRow();
+  // typed ideas survive an error, a reload or leaving the step (cleared when the step is finished)
+  const dk = `storm-draft:${c.op}-${c.n}`; let saved = []; try { saved = JSON.parse(localStorage.getItem(dk) || '[]').filter(x => typeof x === 'string').slice(0, 8); } catch {}
+  for (let i = 0; i < Math.max(min, saved.length); i++) addRow(saved[i] || '');
+  list.addEventListener('input', () => { try { localStorage.setItem(dk, JSON.stringify([...list.querySelectorAll('input')].map(x => x.value))); } catch {} });
   const more = el('button', { class: 'btn-ghost btn-s', type: 'button', onclick: () => addRow()?.focus() }, '+ ещё идея');
   const sum = el('p', { class: 'storm-sum', 'aria-live': 'polite' });
   const sendB = el('button', { class: 'cta cta-sm', type: 'button', onclick: () => send() }, 'Проверить идеи');
-  const endB = el('button', { class: 'btn btn-ghost', type: 'button', disabled: true, onclick: () => { c.answer({ sid }); done(); } }, 'Завершить штурм');
+  const endB = el('button', { class: 'btn btn-ghost', type: 'button', disabled: true, onclick: () => { try { localStorage.removeItem(dk); } catch {} c.answer({ sid }); done(); } }, 'Завершить штурм');
   c.body.append(el('h2', { class: 'q' }, it.q), el('div', { class: 'field-task' }, el('p', {}, it.task), it.tips ? el('ul', { class: 'field-crit' }, it.tips.map(t => el('li', {}, ico('storm'), t))) : null), list, more, sum);
   c.foot.replaceChildren(el('p', { class: 'fine' }, `3 звезды: ${min} рабочих идей, из них хотя бы 2 свежие.`), endB, sendB);
   async function send() {
