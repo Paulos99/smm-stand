@@ -2,6 +2,7 @@ import { MECH, OPS, SHOP } from './data.js?v=20261122e';
 import { api, store } from '../js/api.js?v=20261122e';
 import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122e';
 import { openBriefing } from './theory.js?v=20261122e';
+import { playFinale } from './finale.js?v=20261122e';
 import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122e';
 import { createMissions, photoEditor } from './missions.js?v=20261122e';
 import { createTeacher } from './teacher.js?v=20261122e';
@@ -336,108 +337,23 @@ function checkFinale() { // auto-play once for operations finished but not celeb
   const todo = [1, 2, 3, 4, 5, 6].filter((n) => opComplete(n) && !(S.celebrated || []).includes(n));
   if (todo.length) finale(Math.max(...todo), { auto: true, mark: todo });
 }
-function thud() { // low stamp hit: short sine drop + a soft click, behind the mute toggle
-  if (!sound.on) return;
-  try {
-    const a = thud.ctx ||= new (window.AudioContext || window.webkitAudioContext)(); if (a.state === 'suspended') a.resume();
-    const t = a.currentTime + 0.005, g = a.createGain(), o = a.createOscillator(); o.type = 'sine';
-    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.22);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.32, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
-    o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + 0.32);
-  } catch {}
-}
-function spark(node, n = 8) {
-  const s = document.createElement('i'); s.className = 'fin-spark'; s.setAttribute('aria-hidden', 'true');
-  s.innerHTML = Array.from({ length: n }, (_, k) => `<b style="--a:${k * (360 / n) + (k % 2 ? 12 : 0)}deg;--r:${k % 2 ? 26 : 38}px"></b>`).join('');
-  node.append(s); setTimeout(() => s.remove(), 900);
-}
 function finale(op, { auto = false, mark } = {}) {
   if (finRunning || !S || !opComplete(op)) return;
   finRunning = true;
   if (auto) api('/api/game/celebrated', { method: 'POST', body: { ops: mark || [op] } }).then((r) => { S.celebrated = r.celebrated; }).catch(() => {});
-  const reduce = RMQ.matches, last = op >= OPS.length, meta = OPS[op - 1];
-  if ($('.app').dataset.view !== 'map') setView('map');
-  FIN = { op }; renderOps(); drawLinks();
-  const li = $(`#ops .op[data-op="${op}"]`); const pathEl = li?.querySelector('.path');
-  if (!li || !pathEl) { FIN = null; finRunning = false; renderOps(); return; }
-  const nodes = [...pathEl.querySelectorAll(':scope > .node-wrap')];
-  pathEl.classList.add('fin-prep'); li.classList.add('fin-li');
-  document.body.classList.add('fin-on');
-  const veil = document.createElement('div'); veil.className = 'fin-veil';
-  veil.innerHTML = `<span class="fin-skip">${reduce ? '' : 'Нажмите, чтобы пропустить'}</span>`; document.body.append(veil);
-  const bonus = 100, badgeOn = (S.badges || []).find((b) => b.id === 'op' + op && b.on);
+  const b = (S.badges || []).find((x) => x.id === 'op' + op && x.on);
   const since = S.briefAt?.[op], days = since ? Math.max(1, Math.round((Date.now() - since) / 864e5)) : 0;
-  const timers = []; let done = false;
-  const at = (ms, fn) => timers.push(setTimeout(() => { if (!done) fn(); }, ms));
-  const camera = (el, block = 0.42) => { if (!el) return; const r = el.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, r.top + scrollY - innerHeight * block + r.height / 2), behavior: reduce ? 'auto' : 'smooth' }); };
-  camera(nodes[0], 0.35);
-  // 1) the walk: briefing and every step, stars cascade with a rising chime
-  const NOTES = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77, 1046.5, 1174.66, 1318.51, 1567.98];
-  let t = reduce ? 150 : 650; const STEP = reduce ? 0 : 280;
-  nodes.forEach((w, i) => {
-    at(t, () => {
-      if (!reduce && (i % 2 === 0 || i === nodes.length - 1)) camera(w);
-      w.classList.add('fin-hit'); if (!reduce) spark(w);
-      if (!reduce || i === 0) chime(reduce ? [783.99, 1046.5] : [NOTES[Math.min(i, NOTES.length - 1)]], 0.05, 0.05);
-    });
-    t += STEP;
-  });
-  // 2) the stamp lands on the operation card, a thud and a tiny shake, then the old section folds away
-  t += reduce ? 300 : 350;
-  const stampAt = t;
-  at(stampAt - 250, () => camera(li.querySelector('.op-h'), 0.3));
-  at(stampAt, () => {
-    const st = document.createElement('div'); st.className = 'fin-stamp'; st.setAttribute('role', 'img'); st.setAttribute('aria-label', 'Операция завершена');
-    st.innerHTML = `<span>Операция ${op}</span><b>завершена</b><small>30/30 · ШТАБ</small>`; li.querySelector('.op-h').append(st);
-    li.classList.add('fin-stamped');
-  });
-  at(stampAt + (reduce ? 0 : 230), () => { thud(); if (!reduce) { document.querySelector('.view-map')?.classList.add('fin-shake'); setTimeout(() => document.querySelector('.view-map')?.classList.remove('fin-shake'), 420); } });
-  const sum = document.createElement('aside'); sum.className = 'fin-sum'; sum.setAttribute('role', 'status');
-  sum.innerHTML = `<p class="fin-k">${last ? 'Финал курса' : `Операция ${op} закрыта`}</p><h2>${esc(meta.title)}</h2>
-    <ul class="fin-stats"><li><b class="tn">30/30</b><span>${ico('star', 'st on')} звёзд</span></li><li><b class="tn">+${bonus}</b><span>опыта за операцию</span></li>${days ? `<li><b class="tn">${days}</b><span>${days % 10 === 1 && days % 100 !== 11 ? 'день' : days % 10 >= 2 && days % 10 <= 4 && (days % 100 < 12 || days % 100 > 14) ? 'дня' : 'дней'} в деле</span></li>` : '<li><b class="tn">10/10</b><span>шагов</span></li>'}</ul>
-    ${badgeOn ? `<p class="fin-badge"><img src="../assets/stickers/${badgeOn.st}.webp" alt="" width="56" height="56"><span>Знак «${esc(badgeOn.t)}»</span></p>` : ''}`;
-  at(stampAt + (reduce ? 200 : 800), () => {
-    if (!reduce) { li.classList.add('fin-fold'); } li.classList.add('fin-dim');
-    document.body.append(sum); requestAnimationFrame(() => sum.classList.add('in')); sfx.badge();
-  });
-  // 3) the next operation unlocks (or the whole course is done)
-  const unlockAt = stampAt + (reduce ? 1300 : 2200);
-  if (!last) {
-    const li2 = $(`#ops .op[data-op="${op + 1}"]`);
-    at(unlockAt - 300, () => { li.classList.remove('is-open'); sum.classList.remove('in'); camera(li2, 0.4); });
-    at(unlockAt, () => {
-      const n2 = li2?.querySelector('.op-n'); if (n2) { n2.innerHTML = `<span class="fin-lock" aria-hidden="true"><i class="l">${ico('lock')}</i><i class="r">${ico('lock')}</i></span>`; li2.classList.add('fin-unlock'); }
-      setTimeout(() => sfx.unlock(), reduce ? 0 : 260);
-    });
-    at(unlockAt + (reduce ? 300 : 800), () => {
-      FIN = null; renderOps();
-      const nl = $(`#ops .op[data-op="${op + 1}"]`); nl?.classList.add('fin-rise');
-      requestAnimationFrame(() => { drawLinks(); nl?.querySelectorAll('.links path').forEach((p, k) => { const L = p.getTotalLength?.() || 0; if (!L || reduce) return; p.style.strokeDasharray = L; p.style.strokeDashoffset = L; p.style.transition = `stroke-dashoffset .5s ${0.25 + k * 0.06}s ease-out`; requestAnimationFrame(() => { p.style.strokeDashoffset = '0'; }); }); });
-      camera(nl?.querySelector('.cta') || nl, 0.45);
-      chime([659.25, 783.99, 987.77, 1318.51], 0.07, 0.07);
-    });
-    at(unlockAt + (reduce ? 1600 : 2400), finish);
-  } else {
-    at(unlockAt - 200, () => {
-      sum.classList.add('fin-course'); sum.querySelector('.fin-k').textContent = 'Курс пройден';
-      sum.insertAdjacentHTML('afterbegin', '<img class="fin-course-st" src="../assets/stickers/mission-best.webp" alt="" width="120" height="120">');
-      sum.querySelector('h2').textContent = 'Все 6 операций закрыты. Вы — агент СММ';
-      chime([523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98, 2093], 0.08, 0.08); if (!reduce) spark(sum, 12);
-    });
-    at(unlockAt + (reduce ? 1800 : 3600), finish);
-  }
-  function finish() {
-    if (done) return; done = true; timers.forEach(clearTimeout); document.removeEventListener('keydown', onKey);
-    veil.remove(); document.body.classList.remove('fin-on');
-    sum.classList.remove('in'); setTimeout(() => sum.remove(), 400);
-    const wasFin = !!FIN; FIN = null; finRunning = false;
-    if (wasFin || !last) { renderOps(); drawLinks(); }
-    const target = last ? $(`#ops .op[data-op="${op}"]`) : $(`#ops .op[data-op="${op + 1}"]`);
-    if (wasFin && target) camera(target.querySelector('.cta') || target, 0.45);
-  }
-  veil.addEventListener('pointerdown', finish, { once: true });
-  const onKey = (e) => { if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); finish(); } };
-  document.addEventListener('keydown', onKey);
+  playFinale({ op, stars: starsOf(op), xp: 100, badge: b ? { t: b.t, st: b.st } : null, days, reduce: RMQ.matches,
+    onClose: ({ start }) => {
+      finRunning = false;
+      if ($('.app').dataset.view !== 'map') setView('map');
+      renderOps(); requestAnimationFrame(drawLinks);
+      const nx = op < OPS.length ? op + 1 : op;
+      if (start && op < OPS.length) return briefing(nx);
+      const li = $(`#ops .op[data-op="${nx}"]`); if (!li) return;
+      li.classList.add('fz-new'); setTimeout(() => li.classList.remove('fz-new'), 3600);
+      const r = li.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, r.top + scrollY - 90), behavior: RMQ.matches ? 'auto' : 'smooth' });
+    } });
 }
 
 
