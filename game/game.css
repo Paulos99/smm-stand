@@ -1438,3 +1438,40 @@ body.fz-on{overflow:hidden}
 @keyframes fz-numin{from{opacity:0;transform:scale(.86)}to{opacity:1;transform:none}}
 .fz-rm .fz-num{animation:none!important}
 @media (min-width:900px) and (max-height:860px){.fz-row{min-height:40px;padding-block:3px}.fz-rows{gap:5px}.fz-list{gap:10px}.fz-n{font-size:46px}}
+
+/* «Ваша лига» on narrow phones: nothing may push past the card (t206u) */
+.tm-league{grid-template-columns:auto minmax(0,1fr)}
+.tm-lg-txt{min-width:0}
+.tm-lg-txt h2{font-size:clamp(17px,5.2vw,24px);overflow-wrap:anywhere}
+.tm-lg-txt .bar{width:100%;max-width:100%}
+.tm-ladder{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.tm-ladder li{padding:8px 1px;font-size:clamp(9px,2.6vw,11px)}
+.tm-ladder li b{font-size:clamp(8.5px,2.45vw,10.5px);letter-spacing:-.03em;text-overflow:clip}
+.tm-ladder li .lg{max-width:100%;height:auto}
+@media (max-width:420px){.tm-league{gap:12px;padding:16px 14px}.tm-lg-big{width:76px;height:76px}.tm-lg-big .lg{width:72px;height:72px}}
+@media (max-width:340px){.tm-league{grid-template-columns:1fr;justify-items:start}}
+
+/* «Агент штаба» avatar frame: SVG ring drawn 12% outside the avatar so the layout box keeps its size */
+.avf{position:relative;display:inline-grid;place-items:center;flex:none;width:var(--s);height:var(--s);isolation:isolate}
+.avf>.ava{width:100%!important;height:100%!important;box-shadow:none!important}
+.avf-ring{position:absolute;inset:-12%;width:124%;height:124%;pointer-events:none;overflow:visible;filter:drop-shadow(0 1px 1.5px rgba(10,16,28,.35))}
+.avf-tab{position:absolute;left:50%;bottom:-11%;transform:translateX(-50%) rotate(-3deg);white-space:nowrap;padding:.28em .62em .24em;border-radius:6px;
+  font:800 max(8px,calc(var(--s)*.105))/1 var(--fh);letter-spacing:.06em;text-transform:uppercase;color:#ffe9a3;
+  background:linear-gradient(180deg,#24985f,#145a3b);border:1.5px solid #132033;box-shadow:0 0 0 2px #fff,0 2px 4px rgba(10,16,28,.35)}
+.ag-ava .avf .ava,.pf-top .avf .ava{box-shadow:none}
+.lb-ava .avf{width:40px;height:40px}
+.ag-frame{display:flex;align-items:center;gap:12px;margin:12px 0 4px;padding:10px 12px;min-height:44px;border-radius:14px;background:var(--panel2,rgba(127,127,127,.08));cursor:pointer}
+.ag-frame>span{flex:1;min-width:0;display:grid;gap:2px}
+.ag-frame .fine{margin:0}
+.ag-frame input{position:absolute;opacity:0;width:1px;height:1px}
+.ag-frame .sw{position:relative;flex:none;width:46px;height:28px;border-radius:14px;background:var(--muted);transition:background .2s}
+.ag-frame .sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .22s var(--spring,ease)}
+.ag-frame input:checked+.sw{background:#1f8a5b}
+.ag-frame input:checked+.sw::after{transform:translateX(18px)}
+.ag-frame input:focus-visible+.sw{outline:3px solid var(--blue);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.ag-frame .sw,.ag-frame .sw::after{transition:none}}
+.ag-ava:has(.avf) .ag-cam{bottom:auto;top:-4px;right:-8px}
+/* framed avatars: the «АГЕНТ ШТАБА» tab owns the bottom edge, so the league badge moves to the top-right */
+.pf-top:has(.avf) .pf-lg{top:-10px;bottom:auto;right:-20px}
+.vs-side .avf+.vs-lg{position:relative;z-index:2;margin:-108px 0 68px 84px}
+.vs-side .avf{margin-bottom:10px}

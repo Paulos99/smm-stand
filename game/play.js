@@ -1,6 +1,6 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors, clozeMarks } from './content/grade.js?v=20261122f';
-import { MECH } from './data.js?v=20261122f';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261122g';
+import { MECH } from './data.js?v=20261122g';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
 const el = (tag, attrs = {}, ...kids) => {

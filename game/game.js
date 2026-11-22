@@ -1,12 +1,12 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261122f';
-import { api, store } from '../js/api.js?v=20261122f';
-import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122f';
-import { openBriefing } from './theory.js?v=20261122f';
-import { playFinale } from './finale.js?v=20261122f';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122f';
-import { createMissions, photoEditor } from './missions.js?v=20261122f';
-import { createTeacher } from './teacher.js?v=20261122f';
-import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122f';
+import { MECH, OPS, SHOP } from './data.js?v=20261122g';
+import { api, store } from '../js/api.js?v=20261122g';
+import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122g';
+import { openBriefing } from './theory.js?v=20261122g';
+import { playFinale } from './finale.js?v=20261122g';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122g';
+import { createMissions, photoEditor } from './missions.js?v=20261122g';
+import { createTeacher } from './teacher.js?v=20261122g';
+import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122g';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -199,9 +199,10 @@ function renderSide() {
     </section>
     <section class="panel" data-panel="agent" aria-labelledby="p-agent">
       <h2 id="p-agent">${badge(S.league ?? 0, 30, 'h-lg')}Агент ${esc(S.name)}</h2>
-      <div class="ag-photo"><button class="ag-ava" type="button" data-photo aria-label="${S.photo ? 'Сменить фото' : 'Загрузить фото'}">${avatar({ name: S.name, photo: S.photoHidden ? '' : S.photo }, 76)}<span class="ag-cam">${ico('cam')}</span></button>
+      <div class="ag-photo"><button class="ag-ava" type="button" data-photo aria-label="${S.photo ? 'Сменить фото' : 'Загрузить фото'}">${avatar({ name: S.name, photo: S.photoHidden ? '' : S.photo, frame: S.frame }, 76)}<span class="ag-cam">${ico('cam')}</span></button>
         <div><b>${S.photo ? (S.photoHidden ? 'Фото скрыто преподавателем' : 'Фото агента') : 'Добавьте фото'}</b><p class="fine">${S.photoHidden ? 'Его не видно команде. Можно загрузить другое.' : 'Его увидят в топе, баттлах и профиле. Только команда штаба.'}</p>
         <div class="ag-pa"><button class="btn-ghost btn-s" type="button" data-photo>${S.photo ? 'Сменить' : 'Загрузить'}</button>${S.photo ? '<button class="btn-ghost btn-s" type="button" data-photo-rm>Убрать</button>' : ''}</div></div></div>
+      ${S.hasFrame ? `<label class="ag-frame"><span><b>Рамка «Агент штаба»</b><span class="fine">${S.frame ? 'Её видят все: в топе, баттлах и профиле.' : 'Сейчас снята. Включите, чтобы её видели все.'}</span></span><input type="checkbox" role="switch" data-frame-toggle ${S.frame ? 'checked' : ''}><i class="sw" aria-hidden="true"></i></label>` : ''}
       <div class="rank-row"><span>${esc(S.rank)}</span>${S.nextXp ? `<span class="tn muted">${num(S.xp)} / ${num(S.nextXp)}</span><span>${esc(S.nextRank)}</span>` : '<span>Высшая лига</span>'}</div>
       <div class="bar bar-blue"><i style="--p:${Math.min(1, pct)}"></i></div>
       <p class="fine">${S.nextXp ? `До лиги «${esc(S.nextRank)}» ${num(S.nextXp - S.xp)} опыта. Лига считается по всему опыту, обмен в Лавке её не снижает. Баттлы: ${S.bt?.win || 0} ${plural(S.bt?.win || 0, 'победа', 'победы', 'побед')}, ${S.bt?.draw || 0} вничью.` : 'Вы на вершине штаба.'}</p>
@@ -509,6 +510,11 @@ document.addEventListener('submit', async (e) => {
   } catch (er) { toast(er.message); b.disabled = false; }
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#reward').hidden) closeReward(); });
+document.addEventListener('change', (e) => { // wear / take off the bought avatar frame (seen by everyone)
+  const t = e.target; if (!t.matches?.('[data-frame-toggle]')) return; t.disabled = true;
+  api('/api/game/frame', { method: 'POST', body: { on: t.checked } }).then((r) => { S.frame = r.frame; renderSide(); sfx.tick(); toast(r.frame ? 'Рамка надета, её видят все' : 'Рамка снята'); })
+    .catch((er) => { t.checked = !t.checked; t.disabled = false; toast(er.message); });
+});
 $('#sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') e.target.close(); });
 addEventListener('resize', () => requestAnimationFrame(drawLinks));
 document.fonts?.ready.then(drawLinks);
