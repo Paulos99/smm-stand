@@ -1,12 +1,12 @@
-import { MECH, OPS, SHOP } from './data.js?v=20261122o';
-import { api, store } from '../js/api.js?v=20261122o';
-import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122o';
-import { openBriefing } from './theory.js?v=20261122o';
-import { playFinale } from './finale.js?v=20261122o';
-import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122o';
-import { createMissions, photoEditor } from './missions.js?v=20261122o';
-import { createTeacher } from './teacher.js?v=20261122o';
-import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122o';
+import { MECH, OPS, SHOP } from './data.js?v=20261122p';
+import { api, store } from '../js/api.js?v=20261122p';
+import { playStep, chime, sfx, stagger, replay, sound } from './play.js?v=20261122p';
+import { openBriefing } from './theory.js?v=20261122p';
+import { playFinale } from './finale.js?v=20261122p';
+import { createTeam, badge, LEAGUES, avatar } from './team.js?v=20261122p';
+import { createMissions, photoEditor } from './missions.js?v=20261122p';
+import { createTeacher } from './teacher.js?v=20261122p';
+import { initInstall, showInstallBanner, install, canInstall, canFullscreen, toggleFullscreen, watchUpdates } from './install.js?v=20261122p';
 
 const $ = (s, r = document) => r.querySelector(s);
 const ico = (id, cls = '') => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
@@ -396,10 +396,10 @@ function notify() {
   if (S?.missionWins?.length) { const w = S.missionWins; S.missionWins = []; setTimeout(() => missionWin(w[0]), 700); }
   document.querySelector('.app').classList.toggle('is-teacher', S?.role === 'teacher');
   const bt = S?.battles; if (!bt) return;
-  const n = bt.incoming.length; document.querySelectorAll('[data-go="team"] .dot-n').forEach((d) => { d.hidden = !n; d.textContent = n; });
+  const n = bt.incoming.length + (bt.turn || 0); document.querySelectorAll('[data-go="team"] .dot-n').forEach((d) => { d.hidden = !n; d.textContent = n; });
   const seen = new Set(JSON.parse(localStorage.getItem('game-bt-seen') || '[]')); const msgs = [];
-  bt.incoming.forEach((x) => { if (!seen.has('i' + x.id)) { msgs.push(`${x.name} вызывает вас на баттл. Загляните в «Команду»`); seen.add('i' + x.id); } });
-  bt.done.forEach((x) => { if (!seen.has('d' + x.id)) { msgs.push(`${x.result === 'win' ? 'Победа в баттле!' : x.result === 'draw' ? 'Ничья в баттле.' : 'Баттл проигран.'} Соперник: ${x.name}${bt.gain ? `. +${bt.gain} опыта` : ''}`); seen.add('d' + x.id); } });
+  bt.incoming.forEach((x) => { if (!seen.has('i' + x.id)) { msgs.push(`Агент ${x.name} вызывает вас на баттл${x.stake ? `, ставка ${x.stake} опыта` : ''}. Ответ в «Команде»`); seen.add('i' + x.id); } });
+  bt.done.forEach((x) => { if (!seen.has('d' + x.id)) { msgs.push(`${x.result === 'win' ? 'Победа в баттле!' : x.result === 'draw' ? 'Ничья в баттле.' : 'Баттл проигран.'} Соперник: ${x.name}${bt.gain ? `. ${bt.gain > 0 ? '+' : '−'}${Math.abs(bt.gain)} опыта` : ''}`); seen.add('d' + x.id); } });
   localStorage.setItem('game-bt-seen', JSON.stringify([...seen].slice(-80)));
   msgs.slice(0, 2).forEach((m, i) => setTimeout(() => { toast(m); chime([659.25, 880], 0.08, 0.06); }, 600 + i * 3600));
   if (bt.rankUp) setTimeout(() => { toast(`Новая лига: «${bt.rankUp}»!`); sfx.badge(); }, 400);

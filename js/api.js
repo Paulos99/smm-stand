@@ -14,7 +14,7 @@ async function one(base, path, opt, ctrl) {
   const j = await r.json().catch(() => ({}));
   return { r, j };
 }
-export async function api(path, { method = 'GET', body, timeout = 30000 } = {}) {
+export async function api(path, { method = 'GET', body, timeout = 30000, hedge = true } = {}) { // hedge: false for writes that must not run twice (a slow first copy still completes on the server)
   const headers = { 'content-type': 'application/json' };
   if (store.token) headers['x-stand-token'] = store.token;
   const tester = store.tester || store.user?.name || '';
@@ -30,7 +30,7 @@ export async function api(path, { method = 'GET', body, timeout = 30000 } = {}) 
         .catch(e => { fails++; if (fails >= order.length && !done) reject(new Error('Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.')); else if (order[1] !== undefined && fails === 1 && ctrls.length < 2) start(order[1]); });
     };
     start(order[0]);
-    if (order.length > 1) setTimeout(() => { if (!done && ctrls.length < 2) start(order[1]); }, HEDGE_MS);
+    if (order.length > 1 && hedge) setTimeout(() => { if (!done && ctrls.length < 2) start(order[1]); }, HEDGE_MS);
   });
   ctrls.forEach(c => { try { c.abort(); } catch {} });
   if (res.r.status === 401 && path !== '/api/login') { store.clear(); location.hash = '#/login'; throw new Error('Сессия закончилась, войдите снова'); }

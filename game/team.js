@@ -1,6 +1,7 @@
 // Team: leagues, leaderboards (week / all time / my league), partner battles. All checks are on the server; only display names come here.
-import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122o';
-import { img } from './missions.js?v=20261122o';
+import { playStep, chime, sfx, stagger, replay } from './play.js?v=20261122p';
+import { img } from './missions.js?v=20261122p';
+import { createBattle, left } from './battle.js?v=20261122p';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const num = (n) => Number(n || 0).toLocaleString('ru-RU');
@@ -39,7 +40,8 @@ const frameSvg = (size) => { const id = 'af' + (++fuid); const big = size >= 64;
 export const avatar = (p, size = 40) => p?.frame === 'agent' ? `<span class="avf${size < 64 ? ' avf-s' : ''}" style="--s:${size}px">${avatarRaw(p, size)}${frameSvg(size)}</span>` : avatarRaw(p, size);
 
 export function createTeam({ api, toast, getState, setState, onReward }) {
-  let T = null, tab = 'week', busy = false;
+  let T = null, tab = 'week', busy = false, q = '';
+  const B = createBattle({ api, toast, getState, setState, avatar, badge, LEAGUES, me: () => T?.players.find((p) => p.me) || { name: getState()?.name }, player: (pid) => T?.players.find((p) => p.pid === pid), onChange: () => render() });
   const root = () => document.getElementById('view-team');
   async function load(fresh) { if (!T || fresh) T = await api('/api/game/team'); return T; }
   async function render(fresh = true) {
@@ -49,10 +51,12 @@ export function createTeam({ api, toast, getState, setState, onReward }) {
     const S = getState(), me = T.players.find((p) => p.me) || {}, lg = T.league;
     const next = T.leagues[lg + 1]; const floor = T.leagues[lg].xp; const pct = next ? (S.xp - floor) / (next.xp - floor) : 1;
     const list = rows();
-    const inc = T.battles.filter((b) => b.status === 'open' && b.role === 'to' && b.my == null);
-    document.querySelectorAll('[data-go="team"] .dot-n').forEach((d) => { d.hidden = !inc.length; d.textContent = inc.length; });
-    const wait = T.battles.filter((b) => b.status === 'open' && !(b.role === 'to' && b.my == null));
-    const done = T.battles.filter((b) => b.status !== 'open').slice(0, 6);
+    const v2 = T.battles.filter((b) => b.v === 2), v1 = T.battles.filter((b) => b.v !== 2);
+    const inc = [...v2.filter((b) => b.status === 'pending' && b.role === 'to'), ...v1.filter((b) => b.status === 'open' && b.role === 'to' && b.my == null)];
+    const turn = v2.filter((b) => b.status === 'open' && b.my.rounds < b.rounds.length);
+    const n = inc.length + turn.length; document.querySelectorAll('[data-go="team"] .dot-n').forEach((d) => { d.hidden = !n; d.textContent = n; });
+    const wait = [...v2.filter((b) => (b.status === 'pending' && b.role === 'from') || (b.status === 'open' && b.my.rounds >= b.rounds.length)), ...v1.filter((b) => b.status === 'open' && !(b.role === 'to' && b.my == null))];
+    const done = T.battles.filter((b) => !['open', 'pending'].includes(b.status)).slice(0, 8);
     r.innerHTML = `
       <section class="tm-card tm-league">
         <div class="tm-lg-big">${badge(lg, 92, 'pop')}</div>
@@ -85,11 +89,13 @@ export function createTeam({ api, toast, getState, setState, onReward }) {
       </section>
       <section class="tm-card tm-battles">
         <h3>${ico('vs', 'h-ic')}Баттлы</h3>
-        <p class="muted">Вызовите агента своей лиги. Оба отвечают на одни и те же 6 вопросов, когда удобно, без таймера. Победа <b>+${T.win.win}</b>, ничья <b>+${T.win.draw}</b>, участие <b>+${T.win.lose}</b> опыта.</p>
-        <button class="cta cta-sm" type="button" data-ttab="league" data-scrolltop>${ico('vs')}Выбрать соперника</button>
-        ${wait.length ? `<h4>Ждём ответа</h4><ul class="bt-list">${wait.map((b) => btRow(b)).join('')}</ul>` : ''}
+        <p class="muted">Вызовите любого агента и поставьте опыт. Три раунда: два случайных и финальный допрос одного и того же ИИ-клиента. Играете когда удобно, побеждает тот, у кого больше очков. Банк забирает победитель.</p>
+        ${T.b2.streak > 1 ? `<p class="bx-streak">${ico('flame', 'fill')}Серия побед: ${T.b2.streak}. Рекорд: ${T.b2.best}</p>` : ''}
+        <button class="cta cta-sm" type="button" data-bpick>${ico('vs')}Бросить вызов</button>
+        ${turn.length ? `<h4>Ваш ход</h4><ul class="bt-list">${turn.map((b) => btRow(b)).join('')}</ul>` : ''}
+        ${wait.length ? `<h4>Ждём соперника</h4><ul class="bt-list">${wait.map((b) => btRow(b)).join('')}</ul>` : ''}
         ${done.length ? `<h4>Итоги</h4><ul class="bt-list">${done.map((b) => btRow(b)).join('')}</ul>` : ''}
-        <p class="fine">Баттл живёт 3 дня. Если соперник не ответил, победа за тем, кто сыграл.</p>
+        <p class="fine">На ответ ${T.b2.acceptH} ч, на сам баттл ${T.b2.playH / 24} дня. Кто не доиграл, теряет ставку и столько опыта, сколько набрал соперник. Одновременно можно держать до ${T.b2.maxOut} своих вызовов.</p>
       </section>`;
     stagger(r, ':scope > .tm-card', 60); replay(r, 'tm-in');
     stagger(r.querySelector('.lb'), ':scope > li', 35, 12);
@@ -109,10 +115,34 @@ export function createTeam({ api, toast, getState, setState, onReward }) {
       <span class="lb-xp tn">${num(val)}<small>${tab === 'week' ? 'за неделю' : 'опыта'}</small></span></button></li>`;
   }
   function btRow(b, incoming) {
+    if (b.v === 2) return btRow2(b);
     const res = b.result === 'win' ? '<span class="bt-res win">Победа</span>' : b.result === 'lose' ? '<span class="bt-res lose">Поражение</span>' : b.result === 'draw' ? '<span class="bt-res draw">Ничья</span>' : b.status === 'declined' ? '<span class="bt-res">Отклонён</span>' : b.status === 'expired' ? '<span class="bt-res">Истёк</span>' : '';
     const score = b.status === 'done' ? `<b class="tn">${b.my ?? 0} : ${b.opp.ok ?? 0}</b>` : b.my != null ? `<span class="muted">вы: ${b.my} из ${b.total}, ждём ${esc(b.opp.name)}</span>` : b.role === 'from' ? '<span class="muted">сыграйте свою часть</span>' : '';
     const act = b.status === 'open' && b.my == null ? `<button class="btn btn-s" type="button" data-bplay="${b.id}">${incoming ? 'Принять' : 'Играть'}</button>${incoming ? `<button class="btn-ghost btn-s" type="button" data-bdecline="${b.id}">Отказаться</button>` : ''}` : b.xp ? `<span class="bt-xp tn">+${b.xp}</span>` : '';
     return `<li class="bt-r">${badge(b.opp.league || 0, 28)}<span class="bt-who"><b>${esc(b.opp.name)}</b>${res}${score}</span><span class="bt-a">${act}</span></li>`;
+  }
+  function btRow2(b) {
+    const res = b.result === 'win' ? '<span class="bt-res win">Победа</span>' : b.result === 'lose' ? '<span class="bt-res lose">Поражение</span>' : b.result === 'draw' ? '<span class="bt-res draw">Ничья</span>'
+      : b.status === 'declined' ? '<span class="bt-res">Отклонён</span>' : b.status === 'cancelled' ? '<span class="bt-res">Отозван</span>' : b.status === 'expired' ? '<span class="bt-res">Отменён, ставки вернулись</span>' : '';
+    const pay = b.pay || {}, d = (pay.xp || 0) + (pay.stake || 0) + (pay.penalty || 0);
+    const info = b.status === 'done' ? `<b class="tn">${b.my.total} : ${b.opp.score?.total ?? 0}</b>${b.tech ? '<span class="muted">тех.</span>' : ''}`
+      : b.status === 'pending' ? `<span class="muted">ставка ${b.stake} · ${b.role === 'to' ? 'ответить' : 'ждём ответа'} ещё ${left(b.acceptBy - b.now)}</span>`
+      : b.status === 'open' ? `<span class="muted">раунды ${b.my.rounds}/${b.rounds.length} · соперник ${b.opp.rounds}/${b.rounds.length} · ещё ${left(b.playBy - b.now)}</span>` : `<span class="muted">ставка ${b.stake}</span>`;
+    const act = b.status === 'pending' && b.role === 'to' ? `<button class="btn btn-s" type="button" data-bacc="${b.id}">Ответить</button>`
+      : b.status === 'pending' ? `<button class="btn-ghost btn-s" type="button" data-bcancel="${b.id}">Отозвать</button>`
+      : b.status === 'open' ? `<button class="btn btn-s" type="button" data-bopen="${b.id}">${b.my.rounds < b.rounds.length ? 'Играть' : 'Открыть'}</button>`
+      : b.status === 'done' ? `<button class="btn-ghost btn-s" type="button" data-bopen="${b.id}"><span class="bt-xp tn ${d < 0 ? 'neg' : ''}">${d >= 0 ? '+' : '−'}${Math.abs(d)}</span></button>` : '';
+    return `<li class="bt-r">${badge(b.opp.league || 0, 28)}<span class="bt-who"><b>${esc(b.opp.name)}</b>${res}${info}</span><span class="bt-a">${act}</span></li>`;
+  }
+  function picker() { // challenge anyone: search by callsign, the league and the whole team
+    const sh = document.getElementById('sheet'); const list = () => T.players.filter((p) => !p.me && (!q || p.name.toLowerCase().includes(q.toLowerCase()))).sort((a, b) => (b.league === T.league) - (a.league === T.league) || b.xp - a.xp);
+    const rowsH = () => list().slice(0, 40).map((p) => `<li><button type="button" class="bx-pick" data-bwho="${p.pid}">${avatar(p, 40)}<span><b>${esc(p.name)}</b><small class="muted">Лига «${LEAGUES[p.league]}» · ${num(p.xp)} опыта</small></span>${ico('vs')}</button></li>`).join('') || '<li class="muted">Никого не нашли</li>';
+    sh.innerHTML = `<form method="dialog" class="sheet-in"><h2 id="sheet-t">Кого вызвать?</h2>
+      <input class="bx-search" type="search" placeholder="Позывной агента" aria-label="Поиск по позывному" value="${esc(q)}">
+      <ul class="bx-picks">${rowsH()}</ul><div class="sheet-a"><button class="btn btn-ghost" value="close">Закрыть</button></div></form>`;
+    const inp = sh.querySelector('.bx-search'); inp.oninput = () => { q = inp.value.trim(); sh.querySelector('.bx-picks').innerHTML = rowsH(); };
+    sh.onclick = (e) => { const b = e.target.closest('[data-bwho]'); if (b) { const p = T.players.find((x) => x.pid === b.dataset.bwho); B.challengeSheet(p, T.b2); } };
+    sh.showModal(); sfx.tick();
   }
   function profile(pid) {
     const p = T.players.find((x) => x.pid === pid); if (!p) return;
@@ -131,7 +161,7 @@ export function createTeam({ api, toast, getState, setState, onReward }) {
       </dl>
       ${(() => { const all = getState()?.badges || []; const got = (p.badgeIds || []).map((id) => all.find((x) => x.id === id)).filter(Boolean); return got.length ? `<h3 class="pf-h">Знаки отличия</h3><ul class="pf-bd">${got.map((x) => `<li class="${x.rare ? 'rare' : ''}" title="${esc(x.d)}"><img src="../assets/stickers/${x.st}.webp" alt="" width="56" height="56" loading="lazy"><span>${esc(x.t)}</span></li>`).join('')}</ul>` : ''; })()}
       ${p.works?.length ? `<h3 class="pf-h">Лучшие работы</h3><ul class="pf-works">${p.works.map((w) => `<li><span class="pf-place">${w.place} место</span><b>${esc(w.title)}</b><p>${esc(w.text)}</p>${w.img ? `<img src="${esc(img(w.img))}" alt="Работа: ${esc(w.title)}" loading="lazy">` : ''}</li>`).join('')}</ul>` : ''}
-      ${p.me ? '' : p.can ? `<button class="cta cta-sm" type="button" data-challenge="${p.pid}">${ico('vs')}Вызвать на баттл</button>` : `<p class="pf-lock">${ico('lock')}${esc(p.lock)}</p>`}
+      ${p.me ? '' : `<button class="cta cta-sm" type="button" data-challenge="${p.pid}">${ico('vs')}Вызвать на баттл</button>`}
       <div class="sheet-a"><button class="btn btn-ghost" value="close">Закрыть</button></div></form>`;
     sh.showModal(); sfx.tick();
   }
@@ -190,10 +220,14 @@ export function createTeam({ api, toast, getState, setState, onReward }) {
   function onClick(b) {
     if (b.dataset.ttab) { tab = b.dataset.ttab; sfx.tick(); if (T) render(false); if ('scrolltop' in b.dataset) requestAnimationFrame(() => document.querySelector('.tm-top')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); return true; }
     if (b.dataset.player) { profile(b.dataset.player); return true; }
-    if (b.dataset.challenge) { challenge(b.dataset.challenge); return true; }
+    if (b.dataset.challenge) { const p = T.players.find((x) => x.pid === b.dataset.challenge); if (p) B.challengeSheet(p, T.b2); return true; }
+    if ('bpick' in b.dataset) { picker(); return true; }
+    if (b.dataset.bacc) { const x = T.battles.find((y) => y.id === b.dataset.bacc); if (x) B.acceptSheet(x); return true; }
+    if (b.dataset.bcancel) { B.cancel(b.dataset.bcancel); return true; }
+    if (b.dataset.bopen) { B.open(b.dataset.bopen); return true; }
     if (b.dataset.bplay) { playBattle(b.dataset.bplay); return true; }
     if (b.dataset.bdecline) { decline(b.dataset.bdecline); return true; }
     return false;
   }
-  return { render, onClick, badge };
+  return { render, onClick, badge, battle: B };
 }

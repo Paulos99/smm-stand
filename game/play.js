@@ -1,17 +1,17 @@
 // Mission player: renders one step (a list of items) with instant feedback, then reports answers to the server.
-import { itemErrors, clozeMarks } from './content/grade.js?v=20261122o';
-import { MECH } from './data.js?v=20261122o';
-import { voiceBubble, attachRecorder, canRecord, b64Blob, decode, peaksOf, toUlaw, stopAll, releaseAll, unlockAudio } from './voice.js?v=20261122o';
-import { apiRaw } from '../js/api.js?v=20261122o';
+import { itemErrors, clozeMarks } from './content/grade.js?v=20261122p';
+import { MECH } from './data.js?v=20261122p';
+import { voiceBubble, attachRecorder, canRecord, b64Blob, decode, peaksOf, toUlaw, stopAll, releaseAll, unlockAudio } from './voice.js?v=20261122p';
+import { apiRaw } from '../js/api.js?v=20261122p';
 
 const RM = matchMedia('(prefers-reduced-motion: reduce)');
-const el = (tag, attrs = {}, ...kids) => {
+export const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) { if (v == null || v === false) continue; if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else if (k === 'html') n.innerHTML = v; else n.setAttribute(k, v === true ? '' : v); }
   for (const c of kids.flat()) if (c != null && c !== false) n.append(c.nodeType ? c : document.createTextNode(c));
   return n;
 };
-const ico = (id, cls = '') => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', 'ic ' + cls); s.setAttribute('aria-hidden', 'true'); s.innerHTML = `<use href="#i-${id}"/>`; return s; };
+export const ico = (id, cls = '') => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('class', 'ic ' + cls); s.setAttribute('aria-hidden', 'true'); s.innerHTML = `<use href="#i-${id}"/>`; return s; };
 const wait = ms => new Promise(r => setTimeout(r, RM.matches ? Math.min(ms, 120) : ms));
 const shuffle = n => { const a = [...Array(n).keys()]; for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -45,7 +45,7 @@ export function chime(freqs, gap = 0.07, vol = 0.11) {
   } catch {}
 }
 // soft UI sounds: tiny, short, all behind the same mute toggle
-function tone(f, dur, vol, type = 'sine', f2) {
+export function tone(f, dur, vol, type = 'sine', f2) {
   if (!sound.on) return;
   try {
     actx ||= new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume();
@@ -78,7 +78,7 @@ export function stagger(parent, sel = ':scope > *', step = 45, max = 10) { if (!
 export function replay(node, cls) { if (!node) return; node.classList.remove(cls); void node.offsetWidth; node.classList.add(cls); }
 const vibrate = ok => { try { if (!ok && navigator.vibrate) navigator.vibrate(30); } catch {} };
 
-export function playStep({ op, n, step, api, onDone, onClose, toast, submit, label }) {
+export function playStep({ op, n, step, api, onDone, onClose, toast, submit, label, battle }) {
   const root = document.getElementById('play');
   const items = step.items; const answers = Array(items.length).fill(null);
   const UNGRADED = ['brief', 'field', 'storm']; const graded = items.filter(it => !UNGRADED.includes(it.type)).length || 1;
@@ -97,7 +97,7 @@ export function playStep({ op, n, step, api, onDone, onClose, toast, submit, lab
   setProg();
   function close() { if (closed) return; closed = true; releaseAll(); document.removeEventListener('keydown', onKey); root.hidden = true; root.replaceChildren(); document.body.classList.remove('playing'); onClose?.(); }
   const ctl = {
-    body, foot, toast, api, step, op, n,
+    body, foot, toast, api, step, op, n, battle,
     // shows the feedback sheet and resolves when the student taps «Дальше»
     feedback(ok, title, why, extra) {
       beep(ok); vibrate(ok);
@@ -147,6 +147,7 @@ export function playStep({ op, n, step, api, onDone, onClose, toast, submit, lab
 
 // ---------- mechanics ----------
 const R = {};
+export const mech = R; // battle rounds register their screens here
 const optionBtn = (text, i, onPick) => el('button', { class: 'opt', type: 'button', 'data-i': i, onclick: e => onPick(i, e.currentTarget) }, el('span', { class: 'opt-t' }, text));
 const lockAll = box => box.querySelectorAll('button').forEach(b => { b.disabled = true; });
 
@@ -508,6 +509,8 @@ async function typing(thread, name) {
 R.brief = (it, c) => new Promise(done => {
   const sid = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const who = c.step.client; const covered = new Set(); let asked = 0, busy = false;
+  const B = c.battle; // battle «Допрос»: own endpoints, a hard limit of questions, no hints, then the idea screen
+  const EP = B ? { ask: '/api/game/battle/ask', tts: '/api/game/battle/tts', base: { id: B.id } } : { ask: '/api/game/brief', tts: '/api/game/tts', base: { op: c.op, step: c.n } };
   const greetText = it.greet || 'Здравствуйте! Я Марина, у меня кофейня «Точка тепла» у центра. Подруга сказала, вы разбираетесь в соцсетях. Сделаете нам ленту поярче?';
   const micOk = canRecord(); let vmode = localStorage.getItem('brief-voice') === '1', rec = null, sysMic = null;
   const stageEls = it.stages.map((s, i) => el('li', { class: 'stg' }, el('span', { class: 'stg-d', 'aria-hidden': 'true' }), el('span', { class: 'stg-t' }, s)));
@@ -516,7 +519,8 @@ R.brief = (it, c) => new Promise(done => {
   const sendB = el('button', { class: 'icon-btn send', type: 'button', 'aria-label': 'Отправить', onclick: () => send() }, ico('send'));
   const micB = el('button', { class: 'icon-btn send mic', type: 'button', 'aria-label': 'Голосовое: удерживайте и говорите или нажмите один раз', title: 'Удерживайте и говорите' }, ico('mic'));
   const hintB = el('button', { class: 'btn-ghost btn-s', type: 'button', 'aria-pressed': 'false', 'aria-controls': 'brief-hint', onclick: () => toggleHint() }, ico('storm'), 'Подсказка');
-  const endB = el('button', { class: 'cta cta-sm', type: 'button', disabled: true, onclick: () => finish() }, 'Завершить бриф');
+  const endB = el('button', { class: 'cta cta-sm', type: 'button', disabled: true, onclick: () => finish() }, B ? 'К идее' : 'Завершить бриф');
+  const qCount = el('span', { class: 'bq-count tn', 'aria-live': 'polite' });
   const hintBox = el('p', { class: 'brief-hint', id: 'brief-hint', 'aria-live': 'polite' }); const hintWrap = el('div', { class: 'brief-hint-wrap', 'aria-hidden': 'true' }, hintBox); let hintOpen = false, hintKey = '';
   const txtT = el('button', { type: 'button', 'aria-pressed': String(!vmode), onclick: () => setMode(false) }, 'Текст');
   const vcT = el('button', { type: 'button', 'aria-pressed': String(vmode), onclick: () => setMode(true) }, ico('mic'), 'Голос');
@@ -524,13 +528,15 @@ R.brief = (it, c) => new Promise(done => {
   const composer = el('div', { class: 'composer' }, input, sendB, micB);
   c.body.append(
     el('div', { class: 'brief-top' },
-      el('ol', { class: 'stages', 'aria-label': 'Этапы переговоров' }, stageEls)),
+      B ? qCount : el('ol', { class: 'stages', 'aria-label': 'Этапы переговоров' }, stageEls)),
     el('div', { class: 'chat-top' }, el('span', { class: 'ava', 'aria-hidden': 'true' }, who.name[0]), el('div', { class: 'chat-who' }, el('b', {}, who.name), el('span', {}, who.role + ' · играет ИИ')), modeT), thread, hintWrap);
+  if (B) hintB.hidden = true;
   c.foot.replaceChildren(composer, el('div', { class: 'brief-actions' }, hintB, endB));
   if (micOk) rec = attachRecorder(micB, { host: composer, onSend: sendVoice, onError: (m, info) => sys(m, info), onState: st => composer.classList.toggle('recording', st !== 'idle'),
     tick: k => k === 'start' ? tone(880, 0.07, 0.05, 'sine', 1180) : k === 'cancel' ? tone(420, 0.14, 0.05, 'sine', 240) : k === 'send' ? tone(700, 0.08, 0.05, 'sine', 1050) : sfx.tick() });
   modeT.classList.toggle('on', vmode); syncComposer();
-  if (vmode) greetVoice(); else thread.append(bubble('in', greetText));
+  if (B?.msgs?.length) { thread.append(bubble('in', greetText)); B.msgs.forEach(m => thread.append(bubble(m.role === 'user' ? 'out' : 'in', m.text))); asked = B.msgs.filter(m => m.role === 'user').length; }
+  else if (vmode) greetVoice(); else thread.append(bubble('in', greetText));
   draw();
   const leave = () => { rec?.cancel(false); stopAll(); }; addEventListener('hashchange', leave, { once: true });
   function syncComposer() { const v = vmode && micOk && !input.value.trim(); micB.hidden = !v; sendB.hidden = v; input.placeholder = vmode && micOk ? 'Вопрос текстом или голосовое →' : 'Ваш вопрос клиенту…'; }
@@ -548,7 +554,7 @@ R.brief = (it, c) => new Promise(done => {
     const t = el('div', { class: 'bub bub-in typing' + (voice ? ' vrec' : '') }, voice ? el('span', { class: 'rs-wave', 'aria-hidden': 'true' }, el('i'), el('i'), el('i'), el('i'), el('i')) : el('span', { class: 'dots', 'aria-hidden': 'true' }, el('i'), el('i'), el('i')), el('span', { class: 'typing-t' }, `${who.name} ${voice ? 'записывает голосовое' : 'печатает'}…`));
     thread.append(t); scrollDown(); return t;
   }
-  function lockUI(b) { busy = b; sendB.disabled = b; micB.disabled = b; }
+  function lockUI(b) { busy = b; const out = !!B && asked >= B.max; sendB.disabled = b || out; micB.disabled = b || out; }
   async function voiceIn(b64, text) {
     const blob = b64Blob(b64); let peaks, dur = 0;
     try { const buf = await decode(blob); peaks = peaksOf(buf); dur = buf.duration; } catch {}
@@ -558,7 +564,7 @@ R.brief = (it, c) => new Promise(done => {
   }
   async function greetVoice() {
     lockUI(true); const t = status(true);
-    try { const r = await c.api('/api/game/tts', { method: 'POST', body: { op: c.op, step: c.n, what: 'greet' }, timeout: 30000 }); t.remove(); await voiceIn(r.audio, greetText); }
+    try { const r = await c.api(EP.tts, { method: 'POST', body: { ...EP.base, what: 'greet' }, timeout: 30000 }); t.remove(); await voiceIn(r.audio, greetText); }
     catch (e) { t.remove(); thread.append(bubble('in', greetText)); }
     lockUI(false);
   }
@@ -583,8 +589,8 @@ R.brief = (it, c) => new Promise(done => {
     if (busy) return false; lockUI(true);
     const voice = vmode; const t = status(voice);
     try {
-      const r = await c.api('/api/game/brief', { method: 'POST', body: { sid, text, op: c.op, step: c.n, voice }, timeout: 50000 });
-      t.remove(); const before = covered.size; r.covered.forEach(x => covered.add(x)); asked = r.asked;
+      const r = await c.api(EP.ask, { method: 'POST', body: { ...EP.base, sid, text, voice }, timeout: 50000, hedge: !B });
+      t.remove(); const before = covered.size; (r.covered || []).forEach(x => covered.add(x)); asked = r.asked;
       if (voice && r.audio) await voiceIn(r.audio, r.reply); else thread.append(bubble('in', r.reply));
       if (covered.size > before) beep(true);
       draw(); lockUI(false); scrollDown(); return true;
@@ -599,6 +605,8 @@ R.brief = (it, c) => new Promise(done => {
     const si = stageIdx();
     stageEls.forEach((s, i) => { s.classList.toggle('done', i < si); s.classList.toggle('cur', i === si); if (i === si) s.setAttribute('aria-current', 'step'); else s.removeAttribute('aria-current'); });
     if (hintOpen) paintHint();
+    if (B) { const out = asked >= B.max; qCount.textContent = `Вопрос ${Math.min(asked + (out ? 0 : 1), B.max)} из ${B.max}`; endB.disabled = asked < 1; endB.textContent = out ? 'Вопросы закончились: к идее' : 'К идее';
+      input.disabled = out; sendB.disabled = out || busy; micB.disabled = out || busy; if (out) input.placeholder = 'Вопросы закончились'; return; }
     endB.disabled = asked < 3; endB.textContent = asked < 3 ? `Завершить бриф (ещё ${3 - asked} вопр.)` : 'Завершить бриф';
   }
   function hintText() { // hint for the current stage first, then any fact that is still missing
